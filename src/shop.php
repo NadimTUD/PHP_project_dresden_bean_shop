@@ -10,7 +10,7 @@ function euro(int $cents): string
     return intdiv($cents, 100) . ',' . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT) . ' €';
 }
 
-function checkout(PDO $db, array $cart): array
+function checkout(PDO $db, array $cart, int $customerId): array
 {
     if ($cart === []) {
         throw new CheckoutRejected('Dein Warenkorb ist leer.');
@@ -20,15 +20,24 @@ function checkout(PDO $db, array $cart): array
     ksort($cart, SORT_NUMERIC);
     $db->beginTransaction();
     try {
+        $createOrder = $db->prepare(
+            'INSERT INTO orders (customer_id, customer_name)
+             SELECT id, display_name FROM customers WHERE id = :id RETURNING id'
+        );
+        $createOrder->execute(['id' => $customerId]);
+        $orderId = $createOrder->fetchColumn();
+        if ($orderId === false) {
+            throw new CheckoutRejected('Bitte wähle ein gültiges Demo-Kundenprofil.');
+        }
+        $orderId = (int) $orderId;
         $reserve = $db->prepare(
             'UPDATE products SET stock = stock - :quantity
              WHERE id = :id AND stock >= :minimum RETURNING name, price_cents'
         );
         $insert = $db->prepare(
-            'INSERT INTO order_items (order_id, product_id, quantity, unit_price_cents)
-             VALUES (:order_id, :product_id, :quantity, :price)'
+            'INSERT INTO order_items (order_id, product_id, quantity, unit_price_cents, product_name)
+             VALUES (:order_id, :product_id, :quantity, :price, :name)'
         );
-        $orderId = (int) $db->query('INSERT INTO orders DEFAULT VALUES RETURNING id')->fetchColumn();
         $total = 0;
 
         foreach ($cart as $id => $quantity) {
@@ -43,7 +52,10 @@ function checkout(PDO $db, array $cart): array
             }
 
             $price = (int) $product['price_cents'];
-            $insert->execute(['order_id' => $orderId, 'product_id' => $id, 'quantity' => $quantity, 'price' => $price]);
+            $insert->execute([
+                'order_id' => $orderId, 'product_id' => $id, 'quantity' => $quantity,
+                'price' => $price, 'name' => $product['name'],
+            ]);
             $total += $price * $quantity;
         }
         $db->commit();

@@ -3,11 +3,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/../src/database.php';
 require __DIR__ . '/../src/shop.php';
-
-function h(string $text): string
-{
-    return htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-}
+require __DIR__ . '/../src/customers.php';
+require __DIR__ . '/../src/html.php';
 
 function redirect(): never
 {
@@ -31,9 +28,19 @@ try {
         try {
             $action = $_POST['action'] ?? '';
             if ($action === 'checkout') {
-                $order = checkout($db, $cart);
+                $customerId = filter_input(INPUT_POST, 'customer_id', FILTER_VALIDATE_INT, [
+                    'options' => ['min_range' => 1, 'max_range' => 2147483647],
+                ]);
+                if (!$customerId) {
+                    throw new CheckoutRejected('Bitte wähle ein Demo-Kundenprofil.');
+                }
+                $order = checkout($db, $cart, $customerId);
                 $_SESSION['cart'] = [];
+                $_SESSION['last_order'] = $order['id'];
                 $_SESSION['flash'] = "Bestellung #{$order['id']} erfasst · " . euro($order['total']);
+            } elseif ($action === 'customer') {
+                $_SESSION['flash'] = createCustomer($db, $_POST['display_name'] ?? null)
+                    ? 'Demo-Kundenprofil erstellt.' : 'Dieses Demo-Kundenprofil existiert bereits.';
             } elseif ($action === 'quantity') {
                 $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
                 $quantity = filter_input(INPUT_POST, 'quantity', FILTER_VALIDATE_INT, [
@@ -65,6 +72,7 @@ try {
     }
     $products = $db->query('SELECT id, name, notes, price_cents, stock FROM products ORDER BY id')
         ->fetchAll(PDO::FETCH_ASSOC);
+    $customers = customerProfiles($db);
 } catch (PDOException $error) {
     error_log($error->getMessage());
     http_response_code(500);
@@ -73,7 +81,8 @@ try {
 
 $notice = $_SESSION['flash'] ?? null;
 $warning = $_SESSION['flash_error'] ?? null;
-unset($_SESSION['flash'], $_SESSION['flash_error']);
+$lastOrder = $_SESSION['last_order'] ?? null;
+unset($_SESSION['flash'], $_SESSION['flash_error'], $_SESSION['last_order']);
 $total = 0;
 ?>
 <!doctype html>
@@ -91,11 +100,15 @@ $total = 0;
         <h1>Dresden Bean Shop</h1>
         <p>Drei Röstungen, ein Warenkorb. Ein Demo-Shop mit PHP und PostgreSQL.</p>
         <a href="#cart">Zum Warenkorb (<?= array_sum($cart) ?>)</a>
+        <a class="archive-link" href="/archive.php">Bestellarchiv</a>
     </div>
 </header>
 <main class="wrap">
     <?php if ($notice !== null): ?><p class="notice" role="status"><?= h($notice) ?></p><?php endif; ?>
     <?php if ($warning !== null): ?><p class="warning" role="alert"><?= h($warning) ?></p><?php endif; ?>
+    <?php if ($lastOrder !== null): ?>
+        <p><a href="/archive.php?order=<?= (int) $lastOrder ?>">Bestellung im Archiv ansehen</a></p>
+    <?php endif; ?>
     <h2>Unsere Röstungen</h2>
     <div class="catalog">
         <?php foreach ($products as $product):
@@ -151,10 +164,27 @@ $total = 0;
             <form method="post">
                 <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
                 <input type="hidden" name="action" value="checkout">
+                <label for="customer">Demo-Kundenprofil</label>
+                <select id="customer" name="customer_id" required>
+                    <option value="">Bitte auswählen</option>
+                    <?php foreach ($customers as $customer): ?>
+                        <option value="<?= (int) $customer['id'] ?>"><?= h($customer['display_name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
                 <button>Demo-Bestellung abschließen</button>
             </form>
-            <p class="muted">Keine Zahlung, kein Versand, keine personenbezogenen Daten.</p>
         <?php endif; ?>
+    </section>
+    <section class="card cart" id="customers">
+        <h2>Demo-Kundenprofil anlegen</h2>
+        <p class="muted">Nur fiktive Namen verwenden. Jede Person am Demo-Shop kann das Archiv öffnen.</p>
+        <form method="post">
+            <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
+            <input type="hidden" name="action" value="customer">
+            <label for="display-name">Demo-Name</label>
+            <input class="wide" id="display-name" name="display_name" minlength="2" maxlength="60" required>
+            <button>Profil speichern</button>
+        </form>
     </section>
 </main>
 </body>

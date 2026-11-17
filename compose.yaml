@@ -14,6 +14,16 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+  migrate:
+    image: postgres:17
+    environment:
+      PGPASSWORD: local-demo-only
+    volumes:
+      - ./database/03-customers.sql:/migrations/03-customers.sql:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-h", "db", "-U", "bean_shop", "-d", "bean_shop", "-f", "/migrations/03-customers.sql"]
   web:
     build: .
     environment:
@@ -22,8 +32,8 @@ services:
       DB_USER: bean_shop
       DB_PASSWORD: local-demo-only
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:8080:8080"
 volumes:

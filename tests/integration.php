@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../src/database.php';
 require __DIR__ . '/../src/shop.php';
+require __DIR__ . '/../src/customers.php';
 
 function expect(mixed $actual, mixed $expected, string $label): void
 {
@@ -18,31 +19,52 @@ $db = connect();
 $schema = file_get_contents(__DIR__ . '/../database/01-schema.sql');
 $db->exec(str_replace('CREATE TABLE ', 'CREATE TEMP TABLE ', $schema));
 $db->exec(file_get_contents(__DIR__ . '/../database/02-seed.sql'));
+$db->exec('INSERT INTO orders DEFAULT VALUES');
+$db->exec('INSERT INTO order_items (order_id, product_id, quantity, unit_price_cents) VALUES (1, 3, 1, 1190)');
+$migration = str_replace('CREATE TABLE IF NOT EXISTS customers', 'CREATE TEMP TABLE IF NOT EXISTS customers',
+    file_get_contents(__DIR__ . '/../database/03-customers.sql'));
+$db->exec($migration);
+$db->exec($migration);
 
 $stock = static fn(int $id): int => (int) $db->query("SELECT stock FROM products WHERE id = {$id}")->fetchColumn();
 $count = static fn(): int => (int) $db->query('SELECT count(*) FROM orders')->fetchColumn();
 
 expect(euro(1290), '12,90 €', 'Euro formatting');
-$order = checkout($db, [1 => 2, 2 => 1]);
+$legacy = orderHistory($db, null, 1)[0];
+expect($legacy['customer_name'], null, 'Migration preserves old orders without assigning a customer');
+expect($legacy['items'][0]['product_name'], 'Plauen Blend', 'Migration backfills old item labels');
+expect(count(customerProfiles($db)), 2, 'Rerunning migration does not duplicate demo profiles');
+expect(createCustomer($db, 'Demo Test'), true, 'Creates a demo alias');
+expect(createCustomer($db, 'Demo Test'), false, 'Does not duplicate an existing alias');
+$customerId = (int) $db->query("SELECT id FROM customers WHERE display_name = 'Demo Test'")->fetchColumn();
+$order = checkout($db, [1 => 2, 2 => 1], $customerId);
 expect($order['total'], 4070, 'Accurate checkout total in cents');
 expect($stock(1), 10, 'First product stock reduced');
 expect($stock(2), 7, 'Second product stock reduced');
-expect($count(), 1, 'One order recorded');
+expect($count(), 2, 'One new order recorded');
 
 try {
-    checkout($db, [1 => 1, 2 => 20]);
+    checkout($db, [1 => 1, 2 => 20], $customerId);
     throw new LogicException('Checkout with insufficient stock should have failed.');
 } catch (CheckoutRejected) {
     expect($stock(1), 10, 'Rollback restores previously reduced stock');
     expect($stock(2), 7, 'Unavailable product stock unchanged');
-    expect($count(), 1, 'Rollback removes incomplete order');
+    expect($count(), 2, 'Rollback removes incomplete order');
 }
 
 try {
-    checkout($db, []);
+    checkout($db, [], $customerId);
     throw new LogicException('Empty checkout should have failed.');
 } catch (CheckoutRejected) {
-    expect($count(), 1, 'Empty checkout does not create an order');
+    expect($count(), 2, 'Empty checkout does not create an order');
+}
+
+try {
+    checkout($db, [1 => 1], 0);
+    throw new LogicException('Checkout without a valid customer should have failed.');
+} catch (CheckoutRejected) {
+    expect($stock(1), 10, 'Invalid customer does not reduce stock');
+    expect($count(), 2, 'Invalid customer does not create an order');
 }
 
 $db->exec('UPDATE products SET price_cents = 1990 WHERE id = 1');
@@ -50,3 +72,12 @@ $rows = $db->query(file_get_contents(__DIR__ . '/../database/sales.sql'))->fetch
 expect($rows[0]['name'], 'Elbe Espresso', 'Report sorts by revenue');
 expect((int) $rows[0]['units'], 2, 'Report sums quantities');
 expect((int) $rows[0]['revenue_cents'], 2580, 'Report uses historical sale price');
+$db->exec("UPDATE products SET name = 'New catalog name' WHERE id = 1");
+$db->exec("UPDATE customers SET display_name = 'New demo alias' WHERE id = " . $customerId);
+$history = orderHistory($db, $customerId, null);
+expect(count($history), 1, 'Customer filter only returns matching orders');
+expect($history[0]['id'], $order['id'], 'Archive finds the new order by customer');
+expect($history[0]['customer_name'], 'Demo Test', 'Archive keeps the name at checkout');
+expect($history[0]['items'][0]['product_name'], 'Elbe Espresso', 'Archive keeps the item name at checkout');
+expect($history[0]['total'], 4070, 'Archive calculates the historical order total');
+expect(orderHistory($db, $customerId, 1), [], 'Combined filters exclude the older guest order');

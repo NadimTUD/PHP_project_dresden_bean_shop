@@ -14,7 +14,7 @@ main { padding: 1rem 0 3rem; }
 .controls { margin-top: .4rem; }
 .cart-list { padding-left: 0; }
 .cart-list li { justify-content: space-between; padding: .6rem 0; border-bottom: 1px solid #d9d7cd; }
-button, input { font: inherit; padding: .46rem .65rem; border-radius: .35rem; }
+button, input, select { font: inherit; padding: .46rem .65rem; border-radius: .35rem; }
 button { cursor: pointer; border: 1px solid #21382c; background: #21382c; color: white; }
 button.secondary { color: #21382c; background: white; }
 input { width: 4.1rem; border: 1px solid #747b70; }
@@ -23,4 +23,9 @@ input { width: 4.1rem; border: 1px solid #747b70; }
 .notice, .warning { padding: .75rem 1rem; border-radius: .4rem; }
 .notice { background: #e4f0e2; }
 .warning { background: #ffe2d6; }
+.archive-link { margin-inline-start: 1rem; }
+.filters { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
+.wide { width: min(12rem, 100%); }
+.archive-order { margin-block: .85rem; }
+summary { cursor: pointer; }
 :focus-visible { outline: 3px solid #a04c14; outline-offset: 3px; }
