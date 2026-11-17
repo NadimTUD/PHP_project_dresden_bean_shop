@@ -71,7 +71,8 @@ button.secondary:hover { background: var(--panel); }
 .shop-nav .nav-button:hover { background: var(--panel); text-decoration: underline; }
 .shop-nav [aria-current="page"] { border-color: var(--accent); }
 .shop-nav form { margin-left: auto; }
-#cart, #login, #register, #profile, #roasts { scroll-margin-top: 10rem; }
+#cart, #login, #register, #profile, #password, #roasts { scroll-margin-top: 10rem; }
+.google-login { padding-bottom: 1rem; border-bottom: 1px solid var(--rule); }
 .account-form { display: grid; gap: .55rem; max-width: 28rem; margin-block: 1rem; }
 .account-form input { width: 100%; }
 .account-form button { justify-self: start; }

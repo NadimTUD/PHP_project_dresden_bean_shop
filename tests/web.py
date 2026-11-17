@@ -40,6 +40,7 @@ assert 'href="/account.php#login">Anmelden' in guest_shop
 assert 'href="/account.php#register">Registrieren' in guest_shop
 _, guest_account = alice.request("/account.php")
 assert 'id="login"' in guest_account and 'id="register"' in guest_account
+assert "Google-Anmeldung ist in dieser Demo noch nicht eingerichtet." in guest_account
 
 alice.register("Archive Test Alice", "alice@example.test")
 bob.register("Archive Test Bob", "bob@example.test")
@@ -81,6 +82,19 @@ assert "Kundendaten gespeichert." in edited_by_staff
 assert 'value="alice-edited@example.test"' in edited_by_staff
 assert 'value="alice-edited@example.test"' in alice.request("/account.php")[1]
 assert "Archive Test Alice" in alice.request(path)[1]  # Historical order snapshot.
+assert 'id="current-password"' in alice.request("/account.php")[1]
+password_change = dict(action="password", current_password="test-only-password-2026",
+                       new_password="changed-test-password-2026", confirm_password="changed-test-password-2026")
+assert "Das aktuelle Passwort stimmt nicht." in alice.post(
+    "/account.php", **(password_change | {"current_password": "incorrect-current-password"}))
+assert "Die neuen Passwörter stimmen nicht überein." in alice.post(
+    "/account.php", **(password_change | {"confirm_password": "does-not-match"}))
+assert "Passwort geändert." in alice.post("/account.php", **password_change)
+assert "Archive Test Alice" in alice.request(path)[1]
 assert "Konto erstellen" in alice.post("/account.php", action="logout")
 assert alice.request("/archive.php")[0].endswith("/account.php")
-print("PASS: navigation, registration, checkout, profile, private history, staff access and logout")
+assert "E-Mail oder Passwort stimmt nicht." in alice.post(
+    "/account.php", action="login", email="alice-edited@example.test", password="test-only-password-2026")
+assert "Mein Profil" in alice.post(
+    "/account.php", action="login", email="alice-edited@example.test", password="changed-test-password-2026")
+print("PASS: customer and staff edits, password change, login and private order history")

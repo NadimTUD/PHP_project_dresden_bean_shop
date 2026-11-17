@@ -22,6 +22,12 @@ try {
             } elseif ($action === 'profile' && $account !== null) {
                 updateAccount($db, (int) $account['id'], $_POST['name'] ?? null, $_POST['email'] ?? null);
                 $_SESSION['account_notice'] = 'Profil gespeichert.';
+            } elseif ($action === 'password' && $account !== null) {
+                $id = (int) $account['id'];
+                changeAccountPassword($db, $id, $_POST['current_password'] ?? null, $_POST['new_password'] ?? null,
+                    $_POST['confirm_password'] ?? null);
+                signIn($id);
+                $_SESSION['account_notice'] = 'Passwort geändert.';
             } elseif ($action === 'logout' && $account !== null) {
                 // Also clear the cart and OAuth state on a shared machine.
                 $_SESSION = [];
@@ -30,7 +36,12 @@ try {
         } catch (AccountRejected $error) {
             $_SESSION['account_error'] = $error->getMessage();
         }
-        header('Location: /account.php' . (($action ?? '') === 'profile' ? '#profile' : ''), true, 303);
+        $section = match ($action ?? null) {
+            'profile' => '#profile',
+            'password' => '#password',
+            default => '',
+        };
+        header('Location: /account.php' . $section, true, 303);
         exit;
     }
 } catch (PDOException $error) {
@@ -64,6 +75,15 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
     <div class="account-grid">
         <section class="card" id="login">
             <h2>Anmelden</h2>
+            <?php if (googleSettings() !== null): ?>
+            <form method="post" action="/google.php" class="google-login">
+                <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
+                <button class="secondary">Mit Google anmelden</button>
+                <p class="muted">Beim ersten Besuch wird dein Shop-Konto automatisch angelegt.</p>
+            </form>
+            <?php else: ?>
+            <p class="muted">Google-Anmeldung ist in dieser Demo noch nicht eingerichtet.</p>
+            <?php endif; ?>
             <form class="account-form" method="post">
                 <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
                 <input type="hidden" name="action" value="login">
@@ -73,12 +93,6 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
                 <input type="password" id="login-password" name="password" autocomplete="current-password" required>
                 <button>Anmelden</button>
             </form>
-            <?php if (googleSettings() !== null): ?>
-            <form method="post" action="/google.php">
-                <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
-                <button class="secondary">Mit Google anmelden</button>
-            </form>
-            <?php endif; ?>
         </section>
         <section class="card" id="register">
             <h2>Konto erstellen</h2>
@@ -96,6 +110,7 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
         </section>
     </div>
     <?php else: ?>
+    <div class="account-grid">
     <section class="card" id="profile">
         <h2>Mein Profil<?= (int) $account['staff'] === 1 ? ' · Mitarbeitende' : '' ?></h2>
         <p>Hier kannst du deinen Namen und deine E-Mail-Adresse ändern.</p>
@@ -109,6 +124,25 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
             <button>Kundendaten speichern</button>
         </form>
     </section>
+    <section class="card" id="password">
+        <h2>Passwort ändern</h2>
+        <?php if ((int) $account['has_password'] === 1): ?>
+        <form class="account-form" method="post">
+            <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
+            <input type="hidden" name="action" value="password">
+            <label for="current-password">Aktuelles Passwort</label>
+            <input type="password" id="current-password" name="current_password" autocomplete="current-password" required>
+            <label for="new-password">Neues Passwort (mindestens 12 Zeichen bei ASCII)</label>
+            <input type="password" id="new-password" name="new_password" autocomplete="new-password" required>
+            <label for="confirm-password">Neues Passwort wiederholen</label>
+            <input type="password" id="confirm-password" name="confirm_password" autocomplete="new-password" required>
+            <button type="submit">Passwort speichern</button>
+        </form>
+        <?php else: ?>
+            <p>Du meldest dich mit Google an und hast kein separates Shop-Passwort.</p>
+        <?php endif; ?>
+    </section>
+    </div>
     <?php endif; ?>
 </main>
 </body>

@@ -54,6 +54,8 @@ Mit diesem Konto zeigt **Bestellarchiv** alle Bestellungen und einen Kundenfilte
 Kundenkonten bearbeiten und deren Bestellungen öffnen. Kunden bearbeiten ihre
 eigenen Daten über **Meine Kundendaten**. Bereits gespeicherte Bestellungen
 behalten die Daten vom Bestellzeitpunkt.
+Passwortkonten können dort ihr Shop-Passwort mit dem aktuellen Passwort ändern.
+Reine Google-Konten verwalten ihr Passwort direkt bei Google.
 Die Registrierung im Browser kann keine Mitarbeiterrechte vergeben.
 
 ### Optional: Google-Anmeldung
@@ -66,10 +68,32 @@ Die Registrierung im Browser kann keine Mitarbeiterrechte vergeben.
 3. Kopiere `.env.example` nach `.env`, trage Client-ID und Secret **nur lokal**
    ein und starte Compose erneut. `.env` wird nicht mit Git oder dem Image geteilt.
 
-Der Button **Mit Google anmelden** erscheint dann unter **Anmelden** und legt
+Der Button **Mit Google anmelden** erscheint dann oberhalb der Passwort-Anmeldung und legt
 beim ersten Login ein Konto an. Änderungen an Name oder E-Mail betreffen nur
 das Shop-Profil. Google-Konten werden über ihre Google-Kennung erkannt und
 nicht automatisch mit Passwortkonten gleicher E-Mail verknüpft.
+
+### Öffentlich zugängliche Demo (nicht automatisch bereitgestellt)
+
+`localhost` und `127.0.0.1` funktionieren nur auf dem eigenen Gerät. Ein
+öffentlicher GitHub-Link zeigt den Code, führt aber kein PHP und PostgreSQL aus.
+Für eine teilbare Demo brauchst du:
+
+1. Einen Hostingdienst für einen PHP-Produktionsserver und eine **separate**
+   PostgreSQL-Datenbank mit fiktiven Shopdaten und privaten Zugangsdaten.
+   Die lokale Compose-Konfiguration und den PHP-Entwicklungsserver nicht ins
+   Internet stellen. Vor Freigabe u. a. HTTPS, Secure-Session-Cookies,
+   Login-Drosselung und den Umgang mit Kontodaten einrichten.
+2. Einen eigenen OAuth-Webclient für die öffentliche Umgebung. Dessen
+   Weiterleitungs-URI muss exakt der öffentlichen HTTPS-Adresse entsprechen
+   (z. B. `https://shop.example.com/google.php`). ID, Secret und URI als
+   Umgebungsvariablen beim Hostingdienst hinterlegen, niemals in Git.
+3. In Google Auth Platform die Zielgruppe **External** und für einen allgemein
+   zugänglichen Login den Status **In production** wählen. Googles Branding-,
+   Datenschutz- und ggf. Verifizierungsanforderungen beachten. OAuth prüft
+   keine Stadtzugehörigkeit: Wer den Link hat, kann die Demo aufrufen.
+
+Siehe [Googles Hinweise zu Produktionsanwendungen](https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance).
 
 ## Wie es funktioniert
 

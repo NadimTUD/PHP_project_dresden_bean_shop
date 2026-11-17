@@ -19,13 +19,19 @@ function accountEmail(mixed $value): string
     return strtolower(trim($value));
 }
 
+function validNewPassword(mixed $password): string
+{
+    if (!is_string($password) || strlen($password) < 12 || strlen($password) > 72 || str_contains($password, "\0")) {
+        throw new AccountRejected('Das Passwort muss 12 bis 72 Bytes lang sein.');
+    }
+    return $password;
+}
+
 function createAccount(PDO $db, mixed $name, mixed $email, mixed $password): int
 {
     $name = accountName($name);
     $email = accountEmail($email);
-    if (!is_string($password) || strlen($password) < 12 || strlen($password) > 72 || str_contains($password, "\0")) {
-        throw new AccountRejected('Das Passwort muss 12 bis 72 Bytes lang sein.');
-    }
+    $password = validNewPassword($password);
     $stmt = $db->prepare('INSERT INTO accounts (display_name, email, password_hash)
         VALUES (:name, :email, :hash) ON CONFLICT (email) DO NOTHING RETURNING id');
     $stmt->execute(['name' => $name, 'email' => $email, 'hash' => password_hash($password, PASSWORD_DEFAULT)]);
@@ -62,6 +68,33 @@ function updateAccount(PDO $db, int $id, mixed $name, mixed $email, bool $custom
     }
     if ($stmt->fetchColumn() === false) {
         throw new AccountRejected('Konto nicht gefunden oder nicht bearbeitbar.');
+    }
+}
+
+function changeAccountPassword(PDO $db, int $id, mixed $current, mixed $new, mixed $confirmation): void
+{
+    $find = $db->prepare('SELECT password_hash FROM accounts WHERE id = :id');
+    $find->execute(['id' => $id]);
+    $previous = $find->fetchColumn();
+    if (!is_string($previous)) {
+        throw new AccountRejected('Dieses Konto meldet sich über Google an und hat kein Shop-Passwort.');
+    }
+    if (!is_string($current) || strlen($current) > 72 || str_contains($current, "\0")
+        || !password_verify($current, $previous)) {
+        throw new AccountRejected('Das aktuelle Passwort stimmt nicht.');
+    }
+    $new = validNewPassword($new);
+    if ($new !== $confirmation) {
+        throw new AccountRejected('Die neuen Passwörter stimmen nicht überein.');
+    }
+    if ($current === $new) {
+        throw new AccountRejected('Bitte wähle ein anderes Passwort.');
+    }
+    $save = $db->prepare('UPDATE accounts SET password_hash = :new_hash
+        WHERE id = :id AND password_hash = :previous RETURNING id');
+    $save->execute(['new_hash' => password_hash($new, PASSWORD_DEFAULT), 'id' => $id, 'previous' => $previous]);
+    if ($save->fetchColumn() === false) {
+        throw new AccountRejected('Das Passwort wurde zwischenzeitlich geändert. Bitte versuche es erneut.');
     }
 }
 
@@ -114,7 +147,8 @@ function signedInAccount(PDO $db): ?array
     if (!isset($_SESSION['account_id'])) {
         return null;
     }
-    $stmt = $db->prepare('SELECT id, display_name, email, CASE WHEN is_staff THEN 1 ELSE 0 END AS staff
+    $stmt = $db->prepare('SELECT id, display_name, email, CASE WHEN is_staff THEN 1 ELSE 0 END AS staff,
+        CASE WHEN password_hash IS NULL THEN 0 ELSE 1 END AS has_password
         FROM accounts WHERE id = :id');
     $stmt->execute(['id' => $_SESSION['account_id']]);
     return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;

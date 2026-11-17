@@ -46,6 +46,12 @@ $google = ['sub' => 'test-subject-1', 'email_verified' => true, 'email' => 'goog
 $googleId = googleAccount($db, $google);
 expect(googleAccount($db, $google), $googleId, 'Google identity is reused by subject');
 try {
+    changeAccountPassword($db, $googleId, 'test-only-password', 'another-test-password', 'another-test-password');
+    throw new LogicException('A Google-only account must not gain a password through this screen.');
+} catch (AccountRejected) {
+    echo "PASS: Google-only accounts cannot change a nonexistent shop password\n";
+}
+try {
     googleAccount($db, array_replace($google, ['sub' => 'another-subject', 'email' => 'test@example.test']));
     throw new LogicException('Google login must not take over a password account.');
 } catch (AccountRejected) {
