@@ -196,14 +196,3 @@ Produktnamen übernimmt die Migration den Namen aus dem aktuellen Katalog.
 Datenbank-Zugangsdaten sind nur für den lokalen Betrieb gedacht. Keine produktive
 Bereitstellung mit dieser Konfiguration. Passwortkonten haben in dieser Demo
 keine E-Mail-Bestätigung, Passwort-Wiederherstellung oder Login-Drosselung.
-
-## Nächste Erweiterungen
-
-Zeige im Katalog nur verfügbare Röstungen, wenn ein Kontrollkästchen aktiviert ist:
-Lies den GET-Parameter in `public/index.php` aus und ergänze abhängig davon
-`WHERE stock > 0` im Katalog-SQL. Prüfe beide Ansichten und dokumentiere die
-Änderung in einem eigenen Commit. Erkläre danach, warum ein Filter per GET
-funktioniert, eine Bestellung aber per POST ausgeführt wird.
-
-Danach: Bestellstatus mit Änderungsverlauf und ein einfaches Verkaufsdashboard
-pro Kunde.
