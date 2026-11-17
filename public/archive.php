@@ -6,6 +6,7 @@ require __DIR__ . '/../src/shop.php';
 require __DIR__ . '/../src/customers.php';
 require __DIR__ . '/../src/accounts.php';
 require __DIR__ . '/../src/html.php';
+require __DIR__ . '/../src/navigation.php';
 
 startShopSession();
 
@@ -52,15 +53,12 @@ $pageUrl = static fn(int $number): string => '/archive.php?' . http_build_query(
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<?php shopNavigation('archive', $account, array_sum($_SESSION['cart'] ?? [])); ?>
 <header class="hero">
     <div class="wrap">
         <p class="eyebrow">DRESDEN BEAN SHOP</p>
         <h1>Bestellarchiv</h1>
         <p><?= $staff ? 'Mitarbeiteransicht · Alle Bestellungen' : 'Deine Bestellungen mit Datum, Uhrzeit und Artikeln' ?></p>
-        <nav class="shop-nav" aria-label="Hauptnavigation">
-            <a class="nav-button" href="/">Shop</a>
-            <a class="nav-button" href="/account.php">Mein Konto</a>
-        </nav>
     </div>
 </header>
 <main class="wrap">

@@ -23,9 +23,17 @@ input { width: 4.1rem; border: 1px solid #747b70; }
 .notice, .warning { padding: .75rem 1rem; border-radius: .4rem; }
 .notice { background: #e4f0e2; }
 .warning { background: #ffe2d6; }
-.shop-nav { display: flex; gap: .65rem; flex-wrap: wrap; }
-.hero .nav-button { border: 1px solid #ffdbad; border-radius: .45rem; padding: .45rem .7rem; text-decoration: none; }
-.hero .nav-button:hover { background: #ffdbad; color: #21382c; }
+.shop-nav { position: sticky; top: 0; z-index: 1; background: #fff9ed; border-bottom: 1px solid #d9d7cd; }
+.nav-links { display: flex; align-items: center; gap: .3rem; flex-wrap: wrap; padding-block: .45rem; }
+.shop-nav .nav-button {
+    display: inline-block; border: 1px solid transparent; border-radius: .4rem;
+    padding: .35rem .65rem; color: #21382c; background: transparent; text-decoration: none;
+}
+.shop-nav .nav-button:hover { background: #e4f0e2; text-decoration: underline; }
+.shop-nav [aria-current="page"] { background: #21382c; color: #fff9ed; }
+.shop-nav [aria-current="page"]:hover { background: #2e4b3a; color: #fff9ed; }
+.shop-nav form { margin-left: auto; }
+#cart, #login, #register, #profile { scroll-margin-top: 9rem; }
 .account-form { display: grid; gap: .55rem; max-width: 28rem; margin-bottom: 1rem; }
 .account-form input { width: 100%; }
 .account-form button { justify-self: start; }

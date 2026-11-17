@@ -20,9 +20,9 @@ docker compose up --build -d --wait
 
 1. Lege zwei Packungen Elbe Espresso und eine Packung Neustadt Filter in den Warenkorb.
 2. Prüfe den Gesamtpreis von **40,70 €** (bei den unveränderten Startpreisen).
-3. Öffne **Anmelden / Registrieren**, erstelle ein Konto und schließe die
+3. Wähle **Registrieren** in der oberen Navigation, erstelle ein Konto und schließe die
    Bestellung ab. Der Warenkorb leert sich und im Browser erscheint die Bestellnummer.
-4. Öffne **Bestellarchiv**. Klappe die Bestellung auf, um Datum, Uhrzeit, Artikel,
+4. Öffne **Meine Bestellungen**. Klappe die Bestellung auf, um Datum, Uhrzeit, Artikel,
    Mengen und Preise zu sehen. Normale Konten sehen nur ihre eigenen Bestellungen.
 5. Prüfe den Umsatzbericht im Terminal:
 
@@ -74,6 +74,7 @@ nicht automatisch mit Passwortkonten gleicher E-Mail verknüpft.
 | `public/index.php` | HTML-Ansicht, Formularverarbeitung, Session-Warenkorb und Aufruf des Checkouts |
 | `public/archive.php` | Archivansicht, Filter nach Kundenprofil und Bestellnummer |
 | `public/account.php` | Anmeldung, Registrierung und Profilverwaltung |
+| `src/navigation.php` | Gemeinsame Navigation für Gäste, Kunden und Mitarbeiter |
 | `src/shop.php` | Bestelltransaktion, Bestandsprüfung und Preisformatierung |
 | `src/customers.php` | SQL-Abfrage für das Bestellarchiv |
 | `src/accounts.php` | Kundenkonten, Passworthashes und Sitzungen |

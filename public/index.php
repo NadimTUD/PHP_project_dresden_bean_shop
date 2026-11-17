@@ -5,6 +5,7 @@ require __DIR__ . '/../src/database.php';
 require __DIR__ . '/../src/shop.php';
 require __DIR__ . '/../src/accounts.php';
 require __DIR__ . '/../src/html.php';
+require __DIR__ . '/../src/navigation.php';
 
 function redirect(): never
 {
@@ -83,16 +84,12 @@ $total = 0;
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<?php shopNavigation('shop', $account, array_sum($cart)); ?>
 <header class="hero">
     <div class="wrap">
         <p class="eyebrow">DRESDEN / E-COMMERCE-DEMO</p>
         <h1>Dresden Bean Shop</h1>
         <p>Drei Röstungen, ein Warenkorb. Ein Demo-Shop mit PHP und PostgreSQL.</p>
-        <nav class="shop-nav" aria-label="Hauptnavigation">
-            <a class="nav-button" href="#cart">Warenkorb (<?= array_sum($cart) ?>)</a>
-            <a class="nav-button" href="/account.php"><?= $account === null ? 'Anmelden / Registrieren' : 'Mein Konto' ?></a>
-            <a class="nav-button" href="/archive.php">Bestellarchiv</a>
-        </nav>
     </div>
 </header>
 <main class="wrap">

@@ -5,6 +5,7 @@ require __DIR__ . '/../src/database.php';
 require __DIR__ . '/../src/accounts.php';
 require __DIR__ . '/../src/google.php';
 require __DIR__ . '/../src/html.php';
+require __DIR__ . '/../src/navigation.php';
 
 startShopSession();
 try {
@@ -49,14 +50,11 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<?php shopNavigation($account === null ? '' : 'profile', $account, array_sum($_SESSION['cart'] ?? [])); ?>
 <header class="hero">
     <div class="wrap">
         <p class="eyebrow">DRESDEN BEAN SHOP</p>
         <h1>Kundenkonto</h1>
-        <nav class="shop-nav" aria-label="Hauptnavigation">
-            <a class="nav-button" href="/">Shop</a>
-            <a class="nav-button" href="/archive.php">Bestellarchiv</a>
-        </nav>
     </div>
 </header>
 <main class="wrap">
@@ -65,7 +63,7 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
     <p class="muted">Lokales Demo-Projekt. Verwende für Passwortkonten Testdaten und kein bereits genutztes Passwort.</p>
     <?php if ($account === null): ?>
     <div class="catalog">
-        <section class="card">
+        <section class="card" id="login">
             <h2>Anmelden</h2>
             <form class="account-form" method="post">
                 <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
@@ -83,7 +81,7 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
             </form>
             <?php endif; ?>
         </section>
-        <section class="card">
+        <section class="card" id="register">
             <h2>Konto erstellen</h2>
             <form class="account-form" method="post">
                 <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
@@ -99,7 +97,7 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
         </section>
     </div>
     <?php else: ?>
-    <section class="card">
+    <section class="card" id="profile">
         <h2>Mein Profil<?= (int) $account['staff'] === 1 ? ' · Mitarbeitende' : '' ?></h2>
         <form class="account-form" method="post">
             <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
@@ -109,11 +107,6 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
             <label for="profile-email">E-Mail im Shop</label>
             <input type="email" id="profile-email" name="email" autocomplete="email" maxlength="254" value="<?= h($account['email']) ?>" required>
             <button>Profil speichern</button>
-        </form>
-        <form method="post">
-            <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
-            <input type="hidden" name="action" value="logout">
-            <button class="secondary">Abmelden</button>
         </form>
     </section>
     <?php endif; ?>
