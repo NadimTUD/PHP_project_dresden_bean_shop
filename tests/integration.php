@@ -39,6 +39,9 @@ $workflowMigration = str_replace('CREATE TABLE IF NOT EXISTS order_status_events
     'CREATE TEMP TABLE IF NOT EXISTS order_status_events', file_get_contents(__DIR__ . '/../database/06-order-workflow.sql'));
 $db->exec($workflowMigration);
 $db->exec($workflowMigration);
+$reorderMigration = file_get_contents(__DIR__ . '/../database/07-reorder-threshold.sql');
+$db->exec($reorderMigration);
+$db->exec($reorderMigration);
 $inventory = new PostgresInventory();
 
 $stock = static fn(int $id): int => (int) $db->query("SELECT stock FROM products WHERE id = {$id}")->fetchColumn();
@@ -73,6 +76,7 @@ expect($order['total'], 4070, 'Accurate checkout total in cents');
 expect($stock(1), 10, 'First product stock reduced');
 expect($stock(2), 7, 'Second product stock reduced');
 expect($count(), 2, 'One new order recorded');
+expect((int) openOrdersForDashboard($db)[0]['id'], $order['id'], 'Dashboard shows the new order');
 
 try {
     checkout($db, [1 => 1, 2 => 20], $customerId, $inventory);
@@ -107,6 +111,13 @@ try {
     expect($stock(1), 10, 'Non-staff restock does not change stock');
 }
 $db->exec("UPDATE accounts SET is_staff = true WHERE id = {$otherId}");
+try {
+    $inventory->setReorderThreshold($db, 1, 12, $customerId);
+    throw new LogicException('A customer must not edit the reorder threshold.');
+} catch (StockRejected) {
+    expect($inventory->reorderList($db), [], 'Unauthorized threshold change is blocked');
+}
+$inventory->setReorderThreshold($db, 1, 17, $otherId);
 try {
     $inventory->restock($db, [1 => 5, 999999 => 1], $otherId);
     throw new LogicException('An unknown product must roll back all restocks.');
@@ -147,10 +158,15 @@ try {
     expect(orderHistory($db, $customerId, $order['id'])[0]['status'], 'placed', 'Non-staff status change rejected');
 }
 moveOrder($db, $order['id'], OrderStatus::Placed, OrderStatus::Processing, $otherId, $inventory);
+expect(openOrdersForDashboard($db)[0]['status'], 'processing', 'Processing orders remain in the dashboard queue');
+expect((int) $inventory->reorderList($db)[0]['shortfall'], 2, 'Dashboard reports stock shortage before cancellation');
 moveOrder($db, $order['id'], OrderStatus::Processing, OrderStatus::Cancelled, $otherId, $inventory);
 expect($stock(1), 17, 'Cancellation restores both units of the first product');
 expect($stock(2), 10, 'Cancellation restores the second product');
 expect(orderHistory($db, $customerId, $order['id'])[0]['status'], 'cancelled', 'Customer sees the cancelled status');
+expect(openOrdersForDashboard($db), [], 'Cancelled order drops out of the dashboard queue');
+expect($inventory->reorderList($db), [], 'Returning stock to the threshold clears the reorder warning');
+expect(count($inventory->history($db, 2)), 2, 'Short movement list respects the dashboard limit');
 try {
     moveOrder($db, $order['id'], OrderStatus::Processing, OrderStatus::Cancelled, $otherId, $inventory);
     throw new LogicException('Repeated cancellation must not restore stock twice.');

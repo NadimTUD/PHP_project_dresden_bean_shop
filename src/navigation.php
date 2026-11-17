@@ -18,6 +18,7 @@ function shopNavigation(string $page, ?array $account, int $cartCount): void
         $links[] = ['profile', '/account.php#profile', 'Meine Kundendaten'];
     }
     if ($staff) {
+        array_unshift($links, ['dashboard', '/dashboard.php', 'Dashboard']);
         $links[] = ['customers', '/customers.php', 'Kundenverwaltung'];
         $links[] = ['inventory', '/inventory.php', 'Lager'];
         $links[] = ['team', '/team.php', 'Team'];

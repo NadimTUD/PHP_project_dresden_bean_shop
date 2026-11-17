@@ -23,10 +23,11 @@ services:
       - ./database/04-accounts.sql:/migrations/04-accounts.sql:ro
       - ./database/05-inventory.sql:/migrations/05-inventory.sql:ro
       - ./database/06-order-workflow.sql:/migrations/06-order-workflow.sql:ro
+      - ./database/07-reorder-threshold.sql:/migrations/07-reorder-threshold.sql:ro
     depends_on:
       db:
         condition: service_healthy
-    command: ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-h", "db", "-U", "bean_shop", "-d", "bean_shop", "-f", "/migrations/03-customers.sql", "-f", "/migrations/04-accounts.sql", "-f", "/migrations/05-inventory.sql", "-f", "/migrations/06-order-workflow.sql"]
+    command: ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-h", "db", "-U", "bean_shop", "-d", "bean_shop", "-f", "/migrations/03-customers.sql", "-f", "/migrations/04-accounts.sql", "-f", "/migrations/05-inventory.sql", "-f", "/migrations/06-order-workflow.sql", "-f", "/migrations/07-reorder-threshold.sql"]
   web:
     build: .
     environment:

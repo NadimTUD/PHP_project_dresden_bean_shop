@@ -94,15 +94,38 @@ final class PostgresInventory implements InventoryForOrders, InventoryForCancell
 
     public function products(PDO $db): array
     {
-        return $db->query('SELECT id, name, stock FROM products ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
+        return $db->query('SELECT id, name, stock, reorder_threshold FROM products ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function history(PDO $db): array
+    public function reorderList(PDO $db): array
     {
-        return $db->query('SELECT m.*, p.name AS product_name, a.display_name AS staff_name
+        return $db->query('SELECT id, name, stock, reorder_threshold, reorder_threshold - stock AS shortfall
+            FROM products WHERE stock < reorder_threshold
+            ORDER BY (stock = 0) DESC, shortfall DESC, id')->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function setReorderThreshold(PDO $db, int $productId, int $threshold, int $staffId): void
+    {
+        if ($threshold < 0 || $threshold > MAX_RESTOCK_QUANTITY) {
+            throw new StockRejected('Der Mindestbestand muss zwischen 0 und 10.000 liegen.');
+        }
+        $update = $db->prepare('UPDATE products SET reorder_threshold = :threshold WHERE id = :id
+            AND EXISTS (SELECT 1 FROM accounts WHERE id = :staff AND is_staff) RETURNING id');
+        $update->execute(['threshold' => $threshold, 'id' => $productId, 'staff' => $staffId]);
+        if ($update->fetchColumn() === false) {
+            throw new StockRejected('Der Mindestbestand konnte nicht geändert werden.');
+        }
+    }
+
+    public function history(PDO $db, int $limit = 30): array
+    {
+        $query = $db->prepare('SELECT m.*, p.name AS product_name, a.display_name AS staff_name
             FROM inventory_movements m JOIN products p ON p.id = m.product_id
             LEFT JOIN accounts a ON a.id = m.staff_account_id
-            ORDER BY m.id DESC LIMIT 30')->fetchAll(PDO::FETCH_ASSOC);
+            ORDER BY m.id DESC LIMIT :limit');
+        $query->bindValue('limit', $limit, PDO::PARAM_INT);
+        $query->execute();
+        return $query->fetchAll(PDO::FETCH_ASSOC);
     }
 
     private function record(PDO $db, int $productId, string $kind, int $change, int $stock, ?int $orderId, ?int $staffId): void

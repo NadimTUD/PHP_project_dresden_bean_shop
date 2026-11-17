@@ -47,7 +47,12 @@ try {
     $profile = googleJson('https://openidconnect.googleapis.com/v1/userinfo', [
         'Accept: application/json', 'Authorization: Bearer ' . $accessToken,
     ]);
-    signIn(googleAccount(connect(), $profile));
+    $db = connect();
+    signIn(googleAccount($db, $profile));
+    if ((int) (signedInAccount($db)['staff'] ?? 0) === 1) {
+        header('Location: /dashboard.php', true, 303);
+        exit;
+    }
 } catch (AccountRejected $error) {
     $_SESSION['account_error'] = $error->getMessage();
 } catch (PDOException $error) {

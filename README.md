@@ -78,6 +78,22 @@ bleiben unverändert. Die letzten Lagerbewegungen zeigen Nachfüllungen und
 Verkäufe (mit Verweis auf die zugehörige Bestellung). Ältere Bestellungen und
 Bestände bleiben erhalten; das Protokoll beginnt mit diesem Update.
 
+### Mitarbeiter-Dashboard
+
+Nach der Anmeldung landen Mitarbeitende auf **Dashboard**. Die
+**Nachbestellliste** zeigt Röstungen unter ihrem Mindestbestand und verlinkt
+direkt zum passenden Nachfüllfeld. Der Startwert ist 5 Packungen; Mitarbeitende
+können ihn unter **Lager → Mindestbestände** ändern. 0 schaltet die Warnung
+für eine Röstung aus. Bei genau erreichtem Mindestbestand verschwindet sie.
+Daneben stehen bis zu acht offene Bestellungen (neue zuerst) mit Direktlink
+zur Bearbeitung und die sechs jüngsten Lagerbewegungen.
+
+**Kurz-Demo:** Setze den Mindestbestand einer verfügbaren Röstung auf ihren
+aktuellen Bestand. Bestelle als Kunde eine Packung. Öffne als Mitarbeiter das
+Dashboard: Die Nachbestellwarnung und die neue Bestellung sind sichtbar.
+Storniere die Bestellung. Die Warnung verschwindet und die Rückbuchung steht
+unter **Letzte Lagerbewegungen**.
+
 **Musterentscheidung:** Checkout nutzt den schmalen Port
 `InventoryForOrders` und kennt keine SQL-Anweisungen zur Lagerverwaltung.
 `PostgresInventory` ist der Adapter; die Lagerseite benutzt ihn unabhängig
@@ -148,6 +164,7 @@ Siehe [Googles Hinweise zu Produktionsanwendungen](https://developers.google.com
 | --- | --- |
 | `public/index.php` | HTML-Ansicht, Formularverarbeitung, Session-Warenkorb und Aufruf des Checkouts |
 | `public/archive.php` | Archivansicht, Filter nach Kundenprofil und Bestellnummer |
+| `public/dashboard.php` | Personalübersicht für Nachbestellliste, offene Bestellungen und Lagerbewegungen |
 | `public/account.php` | Anmeldung, Registrierung und Profilverwaltung |
 | `public/customers.php` | Mitarbeiteransicht zur Bearbeitung von Kundenkonten |
 | `public/inventory.php` | Lagerbestand, Nachfüllung und Bewegungsprotokoll für Mitarbeitende |

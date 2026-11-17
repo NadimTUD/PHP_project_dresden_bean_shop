@@ -90,12 +90,30 @@ summary { cursor: pointer; }
 .inventory-history { margin-top: var(--gap); }
 .order-status { border: 1px solid var(--rule); padding-inline: .55rem; border-radius: var(--radius-pill); }
 .order-actions { margin-block: 1rem; }
+.dashboard-hero h1 { font-size: clamp(2.25rem, 5.8vw, 4.5rem); }
+.dashboard-hero { padding-block: clamp(1.6rem, 4vw, 3rem); }
+.reorder-panel { background: var(--ink); color: var(--paper); border-top: 3px solid var(--accent); padding: clamp(1rem, 3vw, 2rem); }
+.reorder-panel a { text-decoration-color: var(--paper); }
+.reorder-panel .primary { background: var(--paper); border-color: var(--paper); color: var(--ink); }
+.reorder-panel .primary:hover { background: var(--panel); }
+.reorder-panel :focus-visible { outline-color: var(--paper); }
+.dashboard-section-head, .dashboard-row { display: flex; justify-content: space-between; align-items: flex-start; gap: .65rem var(--gap); flex-wrap: wrap; }
+.dashboard-section-head h2 { margin-bottom: .2em; }
+.dashboard-list { list-style: none; padding: 0; margin-bottom: 0; }
+.dashboard-empty { padding-block: 1rem .3rem; }
+.reorder-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: .65rem var(--gap); align-items: center; padding-block: 1rem; border-top: 1px solid var(--cream-rule); }
+.reorder-row h3 { margin-bottom: .25em; }
+.dashboard-grid { margin-top: var(--gap); }
+.dashboard-row { border-top: 1px solid var(--rule); padding-block: .7rem; overflow-wrap: anywhere; }
+.inventory-quantity { scroll-margin-top: 10rem; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .cart :focus-visible { outline-color: var(--paper); }
 @media (max-width: 48rem) {
     .roast { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .roast form { grid-column: 1 / -1; }
     .account-grid { grid-template-columns: minmax(0, 1fr); }
+    .reorder-row { grid-template-columns: minmax(0, 1fr); }
+    .reorder-row .primary { justify-self: start; }
     .shop-nav form { margin-left: 0; }
 }
 @media (max-width: 26rem) {

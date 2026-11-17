@@ -22,6 +22,21 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         verifyPostToken();
         try {
+            if (($_POST['action'] ?? null) === 'threshold') {
+                $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT, [
+                    'options' => ['min_range' => 1, 'max_range' => 2147483647],
+                ]);
+                $threshold = filter_input(INPUT_POST, 'threshold', FILTER_VALIDATE_INT, [
+                    'options' => ['min_range' => 0, 'max_range' => MAX_RESTOCK_QUANTITY],
+                ]);
+                if (!is_int($id) || !is_int($threshold)) {
+                    throw new StockRejected('Der Mindestbestand muss zwischen 0 und 10.000 liegen.');
+                }
+                $inventory->setReorderThreshold($db, $id, $threshold, (int) $account['id']);
+                $_SESSION['inventory_notice'] = 'Mindestbestand gespeichert.';
+                header('Location: /inventory.php#threshold-' . $id, true, 303);
+                exit;
+            }
             $submitted = $_POST['quantities'] ?? null;
             if (!is_array($submitted) || count($submitted) > 100) {
                 throw new StockRejected('Ungültige Nachfüllmengen.');
@@ -94,6 +109,25 @@ try {
             <button type="submit">Bestand auffüllen</button>
         </form>
         <?php endif; ?>
+    </section>
+    <section class="card inventory-history">
+        <h2>Mindestbestände</h2>
+        <p>Das Dashboard warnt bei weniger Packungen als dem Mindestbestand. Mit 0 schaltest du die Warnung aus.</p>
+        <ul class="inventory-list">
+            <?php foreach ($products as $product): $id = (int) $product['id']; ?>
+            <li>
+                <form class="filters" method="post">
+                    <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
+                    <input type="hidden" name="action" value="threshold">
+                    <input type="hidden" name="id" value="<?= $id ?>">
+                    <label for="threshold-<?= $id ?>"><?= h($product['name']) ?></label>
+                    <input class="inventory-quantity" id="threshold-<?= $id ?>" name="threshold" type="number"
+                           min="0" max="<?= MAX_RESTOCK_QUANTITY ?>" value="<?= (int) $product['reorder_threshold'] ?>" required>
+                    <button class="secondary" type="submit">Mindestbestand speichern</button>
+                </form>
+            </li>
+            <?php endforeach; ?>
+        </ul>
     </section>
     <section class="card inventory-history">
         <h2>Letzte Lagerbewegungen</h2>

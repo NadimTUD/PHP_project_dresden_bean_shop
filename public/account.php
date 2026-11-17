@@ -22,6 +22,10 @@ try {
                 signIn(createAccount($db, $_POST['name'] ?? null, $_POST['email'] ?? null, $_POST['password'] ?? null));
             } elseif ($action === 'login' && $account === null) {
                 signIn(passwordAccount($db, $_POST['email'] ?? null, $_POST['password'] ?? null));
+                if ((int) (signedInAccount($db)['staff'] ?? 0) === 1) {
+                    header('Location: /dashboard.php', true, 303);
+                    exit;
+                }
             } elseif ($action === 'profile' && $account !== null) {
                 updateAccount($db, (int) $account['id'], $_POST['name'] ?? null, $_POST['email'] ?? null);
                 $_SESSION['account_notice'] = 'Profil gespeichert.';

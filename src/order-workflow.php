@@ -32,6 +32,13 @@ enum OrderStatus: string
 
 final class OrderStatusRejected extends RuntimeException {}
 
+function openOrdersForDashboard(PDO $db): array
+{
+    return $db->query("SELECT id, customer_name, status, created_at FROM orders
+        WHERE status IN ('placed', 'processing')
+        ORDER BY (status = 'placed') DESC, created_at, id LIMIT 8")->fetchAll(PDO::FETCH_ASSOC);
+}
+
 function moveOrder(PDO $db, int $orderId, OrderStatus $expected, OrderStatus $next, int $staffId, InventoryForCancellations $inventory): void
 {
     $db->beginTransaction();

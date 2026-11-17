@@ -78,6 +78,28 @@ assert 'href="/customers.php">Kundenverwaltung' in staff
 assert 'href="/customers.php"' not in own
 assert 'href="/inventory.php">Lager' in staff
 assert 'href="/inventory.php"' not in own
+assert 'href="/dashboard.php">Dashboard' in staff
+assert 'href="/dashboard.php"' not in own
+try:
+    alice.request("/dashboard.php")
+    raise AssertionError("Customer opened the staff dashboard")
+except HTTPError as error:
+    assert error.code == 403
+try:
+    _, page = alice.request("/")
+    csrf = re.search(r'name="csrf" value="([0-9a-f]{64})"', page)[1]
+    alice.request("/inventory.php", {"csrf": csrf, "action": "threshold", "id": "1", "threshold": "12"})
+    raise AssertionError("Customer updated an inventory threshold")
+except HTTPError as error:
+    assert error.code == 403
+_, before_dashboard = bob.request("/dashboard.php")
+assert "Kein Artikel liegt unter dem Mindestbestand." in before_dashboard
+assert f'href="/archive.php?order={order_id}"' in before_dashboard
+assert "Mindestbestand gespeichert." in bob.post("/inventory.php", action="threshold", id="1", threshold="12")
+_, below_threshold = bob.request("/dashboard.php")
+assert 'href="/inventory.php#restock-1"' in below_threshold
+assert "11 auf Lager / Mindestbestand 12" in below_threshold
+assert "fehlen bis zum Mindestbestand" in below_threshold
 try:
     alice.request("/inventory.php")
     raise AssertionError("Customer accessed staff inventory")
@@ -89,6 +111,9 @@ retail = bob.post("/inventory.php", **{"quantities[1]": "4", "quantities[2]": "3
 assert "Lagerbestand aufgefüllt." in retail
 assert "15 auf Lager" in retail and "11 auf Lager" in retail and "Nachfüllung +4" in retail
 assert "15 verfügbar" in alice.request("/")[1]
+_, restocked_dashboard = bob.request("/dashboard.php")
+assert "Kein Artikel liegt unter dem Mindestbestand." in restocked_dashboard
+assert 'href="/inventory.php#restock-1"' not in restocked_dashboard
 invalid_restock = bob.post("/inventory.php", **{"quantities[1]": "-1"})
 assert "eine ganze Zahl" in invalid_restock and "15 auf Lager" in invalid_restock
 try:
@@ -102,6 +127,9 @@ assert "In Bearbeitung" in alice.request(path)[1]
 assert "Bestellung storniert und Bestand zurückgebucht." in bob.post(
     path, id=order_id, expected="processing", status="cancelled")
 assert "Storniert" in alice.request(path)[1]
+_, cancelled_dashboard = bob.request("/dashboard.php")
+assert "Keine offenen Bestellungen." in cancelled_dashboard
+assert "Storno," in cancelled_dashboard
 _, after = bob.request("/inventory.php")
 assert "16 auf Lager" in after and "Storno +1" in after
 assert "Der Status kann nicht geändert werden." in bob.post(
@@ -137,4 +165,7 @@ assert "Mein Profil" in alice.post(
     "/account.php", action="login", email="alice-edited@example.test", password="changed-test-password-2026")
 assert "Mitarbeiterrolle vergeben." in bob.post("/team.php", email="alice-edited@example.test")
 assert 'href="/inventory.php">Lager' in alice.request("/account.php")[1]
-print("PASS: role setup, order lifecycle, exactly-once stock return and customer account workflows")
+alice.post("/account.php", action="logout")
+assert "Mitarbeiter-Dashboard" in alice.post("/account.php", action="login", email="alice-edited@example.test",
+                                          password="changed-test-password-2026")
+print("PASS: staff dashboard, stock thresholds, role setup, order lifecycle and customer workflows")
