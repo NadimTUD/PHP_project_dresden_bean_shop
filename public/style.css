@@ -84,6 +84,10 @@ summary { cursor: pointer; }
 .customer-list { list-style: none; padding: 0; }
 .customer-list li { display: grid; padding: .75rem 0; border-bottom: 1px solid var(--rule); overflow-wrap: anywhere; }
 .customer-list a[aria-current="page"] { font-weight: 700; }
+.inventory-list { list-style: none; padding: 0; }
+.inventory-list li { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem 1rem; padding: .75rem 0; border-bottom: 1px solid var(--rule); }
+.inventory-list .inventory-quantity { width: 6rem; }
+.inventory-history { margin-top: var(--gap); }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .cart :focus-visible { outline-color: var(--paper); }
 @media (max-width: 48rem) {

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/inventory.php';
+
 const MAX_QUANTITY = 20;
 
 final class CheckoutRejected extends RuntimeException {}
@@ -10,7 +12,7 @@ function euro(int $cents): string
     return intdiv($cents, 100) . ',' . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT) . ' €';
 }
 
-function checkout(PDO $db, array $cart, int $accountId): array
+function checkout(PDO $db, array $cart, int $accountId, InventoryForOrders $inventory): array
 {
     if ($cart === []) {
         throw new CheckoutRejected('Dein Warenkorb ist leer.');
@@ -30,10 +32,6 @@ function checkout(PDO $db, array $cart, int $accountId): array
             throw new CheckoutRejected('Bitte melde dich erneut an.');
         }
         $orderId = (int) $orderId;
-        $reserve = $db->prepare(
-            'UPDATE products SET stock = stock - :quantity
-             WHERE id = :id AND stock >= :minimum RETURNING name, price_cents'
-        );
         $insert = $db->prepare(
             'INSERT INTO order_items (order_id, product_id, quantity, unit_price_cents, product_name)
              VALUES (:order_id, :product_id, :quantity, :price, :name)'
@@ -44,10 +42,9 @@ function checkout(PDO $db, array $cart, int $accountId): array
             if (!is_int($id) || $id < 1 || !is_int($quantity) || $quantity < 1 || $quantity > MAX_QUANTITY) {
                 throw new CheckoutRejected('Ungültige Menge im Warenkorb.');
             }
-            $reserve->execute(['quantity' => $quantity, 'id' => $id, 'minimum' => $quantity]);
-            $product = $reserve->fetch(PDO::FETCH_ASSOC);
-            $reserve->closeCursor();
-            if ($product === false) {
+            try {
+                $product = $inventory->deductForOrder($db, $id, $quantity, $orderId);
+            } catch (StockRejected) {
                 throw new CheckoutRejected('Ein Artikel ist nicht mehr in ausreichender Menge verfügbar. Bitte passe deinen Warenkorb an.');
             }
 

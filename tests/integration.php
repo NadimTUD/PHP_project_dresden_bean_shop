@@ -30,6 +30,11 @@ $accountsMigration = str_replace('CREATE TABLE IF NOT EXISTS accounts', 'CREATE 
     file_get_contents(__DIR__ . '/../database/04-accounts.sql'));
 $db->exec($accountsMigration);
 $db->exec($accountsMigration);
+$inventoryMigration = str_replace('CREATE TABLE IF NOT EXISTS inventory_movements',
+    'CREATE TEMP TABLE IF NOT EXISTS inventory_movements', file_get_contents(__DIR__ . '/../database/05-inventory.sql'));
+$db->exec($inventoryMigration);
+$db->exec($inventoryMigration);
+$inventory = new PostgresInventory();
 
 $stock = static fn(int $id): int => (int) $db->query("SELECT stock FROM products WHERE id = {$id}")->fetchColumn();
 $count = static fn(): int => (int) $db->query('SELECT count(*) FROM orders')->fetchColumn();
@@ -57,30 +62,31 @@ try {
 } catch (AccountRejected) {
     echo "PASS: Google identity is not automatically linked by email\n";
 }
-$order = checkout($db, [1 => 2, 2 => 1], $customerId);
+$order = checkout($db, [1 => 2, 2 => 1], $customerId, $inventory);
 expect($order['total'], 4070, 'Accurate checkout total in cents');
 expect($stock(1), 10, 'First product stock reduced');
 expect($stock(2), 7, 'Second product stock reduced');
 expect($count(), 2, 'One new order recorded');
 
 try {
-    checkout($db, [1 => 1, 2 => 20], $customerId);
+    checkout($db, [1 => 1, 2 => 20], $customerId, $inventory);
     throw new LogicException('Checkout with insufficient stock should have failed.');
 } catch (CheckoutRejected) {
     expect($stock(1), 10, 'Rollback restores previously reduced stock');
     expect($stock(2), 7, 'Unavailable product stock unchanged');
     expect($count(), 2, 'Rollback removes incomplete order');
+    expect(count($inventory->history($db)), 2, 'Rollback leaves no movement from the failed sale');
 }
 
 try {
-    checkout($db, [], $customerId);
+    checkout($db, [], $customerId, $inventory);
     throw new LogicException('Empty checkout should have failed.');
 } catch (CheckoutRejected) {
     expect($count(), 2, 'Empty checkout does not create an order');
 }
 
 try {
-    checkout($db, [1 => 1], 0);
+    checkout($db, [1 => 1], 0, $inventory);
     throw new LogicException('Checkout without a valid customer should have failed.');
 } catch (CheckoutRejected) {
     expect($stock(1), 10, 'Invalid customer does not reduce stock');
@@ -88,6 +94,29 @@ try {
 }
 
 $db->exec('UPDATE products SET price_cents = 1990 WHERE id = 1');
+try {
+    $inventory->restock($db, [1 => 5], $customerId);
+    throw new LogicException('A customer must not be allowed to restock.');
+} catch (StockRejected) {
+    expect($stock(1), 10, 'Non-staff restock does not change stock');
+}
+$db->exec("UPDATE accounts SET is_staff = true WHERE id = {$otherId}");
+try {
+    $inventory->restock($db, [1 => 5, 999999 => 1], $otherId);
+    throw new LogicException('An unknown product must roll back all restocks.');
+} catch (StockRejected) {
+    expect($stock(1), 10, 'Failed batch rolls back earlier stock increments');
+    expect(count($inventory->history($db)), 2, 'Failed batch leaves no movement');
+}
+$inventory->restock($db, [1 => 5, 2 => 2], $otherId);
+expect($stock(1), 15, 'Restock adds to current stock');
+expect($stock(2), 9, 'Restock can update several products at once');
+expect($count(), 2, 'Restock does not create orders');
+$moves = $inventory->history($db);
+expect(count($moves), 4, 'Sales and restocks are recorded separately');
+expect($moves[0]['kind'], 'restock', 'Latest movement is a restock');
+expect((int) $moves[0]['staff_account_id'], $otherId, 'Restock is attributed to staff');
+expect((int) $moves[2]['order_id'], $order['id'], 'Sale movement links to order');
 $rows = $db->query(file_get_contents(__DIR__ . '/../database/sales.sql'))->fetchAll(PDO::FETCH_ASSOC);
 expect($rows[0]['name'], 'Elbe Espresso', 'Report sorts by revenue');
 expect((int) $rows[0]['units'], 2, 'Report sums quantities');

@@ -69,6 +69,21 @@ assert 'href="/archive.php" aria-current="page">Bestellarchiv · Alle Bestellung
 assert "Bestellarchiv · Alle Bestellungen" not in own
 assert 'href="/customers.php">Kundenverwaltung' in staff
 assert 'href="/customers.php"' not in own
+assert 'href="/inventory.php">Lager' in staff
+assert 'href="/inventory.php"' not in own
+try:
+    alice.request("/inventory.php")
+    raise AssertionError("Customer accessed staff inventory")
+except HTTPError as error:
+    assert error.code == 403
+_, before_restock = bob.request("/inventory.php")
+assert "11 auf Lager" in before_restock and f'href="/archive.php?order={order_id}"' in before_restock
+retail = bob.post("/inventory.php", **{"quantities[1]": "4", "quantities[2]": "3", "quantities[3]": ""})
+assert "Lagerbestand aufgefüllt." in retail
+assert "15 auf Lager" in retail and "11 auf Lager" in retail and "Nachfüllung +4" in retail
+assert "15 verfügbar" in alice.request("/")[1]
+invalid_restock = bob.post("/inventory.php", **{"quantities[1]": "-1"})
+assert "eine ganze Zahl" in invalid_restock and "15 auf Lager" in invalid_restock
 _, directory = bob.request("/customers.php")
 customer_path = re.search(r'href="(/customers.php\?id=\d+)"\s*>Alice Updated</a>', directory)[1]
 customer_id = customer_path.rsplit("=", 1)[1]

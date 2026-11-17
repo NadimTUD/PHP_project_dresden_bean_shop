@@ -58,6 +58,23 @@ Passwortkonten können dort ihr Shop-Passwort mit dem aktuellen Passwort ändern
 Reine Google-Konten verwalten ihr Passwort direkt bei Google.
 Die Registrierung im Browser kann keine Mitarbeiterrechte vergeben.
 
+### Lagerverwaltung
+
+Öffne als Mitarbeiter **Lager**. Trage bei einer oder mehreren Röstungen die
+zusätzliche Stückzahl ein, dann klicke **Bestand auffüllen**. Leere Felder
+bleiben unverändert. Die letzten Lagerbewegungen zeigen Nachfüllungen und
+Verkäufe (mit Verweis auf die zugehörige Bestellung). Ältere Bestellungen und
+Bestände bleiben erhalten; das Protokoll beginnt mit diesem Update.
+
+**Musterentscheidung:** Checkout nutzt den schmalen Port
+`InventoryForOrders` und kennt keine SQL-Anweisungen zur Lagerverwaltung.
+`PostgresInventory` ist der Adapter; die Lagerseite benutzt ihn unabhängig
+vom Bestellarchiv. Das ist eine Schnittstelle mit Dependency Injection und
+kein GoF-Bridge-Muster: Es gibt nicht zwei unabhängig variierende
+Klassenhierarchien. Die Bestellung gibt dem Adapter dieselbe aktive
+PostgreSQL-Transaktion weiter, damit Bestellung, Bestandsabzug und
+Lagerprotokoll gemeinsam gespeichert oder zurückgerollt werden.
+
 ### Optional: Google-Anmeldung
 
 1. Lege in der [Google Cloud Console](https://console.cloud.google.com/) einen
@@ -103,14 +120,17 @@ Siehe [Googles Hinweise zu Produktionsanwendungen](https://developers.google.com
 | `public/archive.php` | Archivansicht, Filter nach Kundenprofil und Bestellnummer |
 | `public/account.php` | Anmeldung, Registrierung und Profilverwaltung |
 | `public/customers.php` | Mitarbeiteransicht zur Bearbeitung von Kundenkonten |
+| `public/inventory.php` | Lagerbestand, Nachfüllung und Bewegungsprotokoll für Mitarbeitende |
 | `src/navigation.php` | Gemeinsame Navigation für Gäste, Kunden und Mitarbeiter |
-| `src/shop.php` | Bestelltransaktion, Bestandsprüfung und Preisformatierung |
+| `src/shop.php` | Bestelltransaktion und Preisformatierung |
+| `src/inventory.php` | Port für den Bestandsabzug und PostgreSQL-Adapter |
 | `src/customers.php` | SQL-Abfrage für das Bestellarchiv |
 | `src/accounts.php` | Kundenkonten, Passworthashes und Sitzungen |
 | `src/database.php` | PostgreSQL-Verbindung über PDO |
 | `database/01-schema.sql` | Produkte, Bestellungen und Bestellpositionen mit Fremdschlüsseln und Constraints |
 | `database/03-customers.sql` | Wiederholbare Migration für Profile und historische Namen |
 | `database/04-accounts.sql` | Kundenkonten, Mitarbeiterrolle und Verknüpfung mit Bestellungen |
+| `database/05-inventory.sql` | Lagerbewegungen für Verkäufe und Nachfüllungen |
 | `database/sales.sql` | Verkäufe pro Produkt per JOIN, SUM und GROUP BY |
 | `tests/integration.php` | Tests für erfolgreiche und fehlgeschlagene Bestellungen sowie den Bericht |
 

@@ -21,10 +21,11 @@ services:
     volumes:
       - ./database/03-customers.sql:/migrations/03-customers.sql:ro
       - ./database/04-accounts.sql:/migrations/04-accounts.sql:ro
+      - ./database/05-inventory.sql:/migrations/05-inventory.sql:ro
     depends_on:
       db:
         condition: service_healthy
-    command: ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-h", "db", "-U", "bean_shop", "-d", "bean_shop", "-f", "/migrations/03-customers.sql", "-f", "/migrations/04-accounts.sql"]
+    command: ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-h", "db", "-U", "bean_shop", "-d", "bean_shop", "-f", "/migrations/03-customers.sql", "-f", "/migrations/04-accounts.sql", "-f", "/migrations/05-inventory.sql"]
   web:
     build: .
     environment:

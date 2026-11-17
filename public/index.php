@@ -28,7 +28,7 @@ try {
                 if ($account === null) {
                     throw new CheckoutRejected('Bitte melde dich an, um zu bestellen.');
                 }
-                $order = checkout($db, $cart, (int) $account['id']);
+                $order = checkout($db, $cart, (int) $account['id'], new PostgresInventory());
                 $_SESSION['cart'] = [];
                 $_SESSION['last_order'] = $order['id'];
                 $_SESSION['flash'] = "Bestellung #{$order['id']} erfasst · " . euro($order['total']);
