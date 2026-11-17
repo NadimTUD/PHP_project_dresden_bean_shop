@@ -1,0 +1,16 @@
+name: PHP and PostgreSQL checks
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start PostgreSQL and PHP
+        run: docker compose up -d --build --wait
+      - name: PHP syntax check
+        run: docker compose exec -T web sh -c 'find public src bin tests -name "*.php" -print0 | xargs -0 -n 1 php -l'
+      - name: Integration tests
+        run: docker compose exec -T web php tests/integration.php
+      - name: Catalog smoke test
+        run: curl --retry 6 --retry-connrefused --fail --silent --show-error http://127.0.0.1:8080/ | grep -F 'Elbe Espresso'

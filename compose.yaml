@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: bean_shop
+      POSTGRES_USER: bean_shop
+      POSTGRES_PASSWORD: local-demo-only
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./database/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "bean_shop", "-d", "bean_shop"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  web:
+    build: .
+    environment:
+      DB_HOST: db
+      DB_NAME: bean_shop
+      DB_USER: bean_shop
+      DB_PASSWORD: local-demo-only
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+volumes:
+  db-data:
