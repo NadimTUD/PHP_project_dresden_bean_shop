@@ -88,6 +88,8 @@ summary { cursor: pointer; }
 .inventory-list li { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem 1rem; padding: .75rem 0; border-bottom: 1px solid var(--rule); }
 .inventory-list .inventory-quantity { width: 6rem; }
 .inventory-history { margin-top: var(--gap); }
+.order-status { border: 1px solid var(--rule); padding-inline: .55rem; border-radius: var(--radius-pill); }
+.order-actions { margin-block: 1rem; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .cart :focus-visible { outline-color: var(--paper); }
 @media (max-width: 48rem) {

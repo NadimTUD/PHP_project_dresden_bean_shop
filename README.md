@@ -42,8 +42,20 @@ Datenbank-Volume weiterverwenden.
 
 ### Mitarbeiteransicht
 
-Registriere zuerst ein separates Testkonto im Shop. Weise ihm danach lokal die
-Mitarbeiterrolle zu (ersetze die Beispieladresse durch die registrierte Adresse):
+**Schon Mitarbeiter?** Öffne **Team** in der Navigation und trage die E-Mail
+des registrierten Kontos ein, dem du Mitarbeiterrechte geben möchtest. Das
+Konto kann danach **Lager**, **Kundenverwaltung**, **Team** und das
+Mitarbeiterarchiv öffnen. Vergib diese Rolle nur an vertrauenswürdige Personen.
+
+**Erstes Mitarbeiterkonto in einer neuen lokalen Installation:** Setze einmal
+einen privaten, zufälligen `STAFF_SETUP_TOKEN` (mindestens 32 Zeichen) in
+deiner lokalen `.env` und starte den Shop mit Docker Compose neu. Melde dich
+mit dem gewünschten Konto an und öffne **Meine Kundendaten → Mitarbeiterzugang
+einrichten**. Gib den Code dort ein. Sobald ein Mitarbeiterkonto existiert,
+ist die Einrichtung gesperrt. Entferne danach den Code aus `.env`. Es gibt
+keinen Standardcode und keine Mitarbeiterrolle per Selbstregistrierung.
+
+Alternativ kann der lokale Betreiber das erste Konto weiterhin per CLI einrichten:
 
 ```bash
 docker compose exec web php bin/grant-staff.php team@example.test
@@ -74,6 +86,24 @@ kein GoF-Bridge-Muster: Es gibt nicht zwei unabhängig variierende
 Klassenhierarchien. Die Bestellung gibt dem Adapter dieselbe aktive
 PostgreSQL-Transaktion weiter, damit Bestellung, Bestandsabzug und
 Lagerprotokoll gemeinsam gespeichert oder zurückgerollt werden.
+
+### Portfolio-Demo: Bestellung bis zur Stornierung
+
+1. Lege als Kunde eine frische Bestellung an. Im Lager sinkt der Bestand,
+   im Kundenarchiv erscheint **Neu**.
+2. Öffne als Mitarbeiter **Bestellarchiv**, klappe die Bestellung auf und starte
+   die Bearbeitung. Der Kunde sieht **In Bearbeitung** und den Zeitstempel.
+3. Schließe die Bestellung ab oder wähle **Stornieren und Bestand zurückbuchen**.
+   Beim Storno erscheinen die Packungen wieder im Lager, ohne die Bestellung
+   oder ihren Verlauf zu löschen. Stornierte Bestellungen zählen nicht zum Umsatz.
+4. Öffne den Bestellverlauf und das Lagerprotokoll. Nur erlaubte Statusübergänge
+   sind verfügbar; ein veralteter oder doppelt gesendeter Storno bucht nicht erneut.
+
+Die Statusmaschine steht in `src/order-workflow.php`. PostgreSQL sperrt die
+Bestellzeile bei einem Statuswechsel; Status, Lageränderung und Protokoll
+werden bei einem Storno in **derselben Transaktion** geschrieben. Alte
+Bestellungen erscheinen als **Altbestand**, weil ihr bisheriger Status
+nicht bekannt ist. Sie bleiben sichtbar, aber nicht stornierbar.
 
 ### Optional: Google-Anmeldung
 

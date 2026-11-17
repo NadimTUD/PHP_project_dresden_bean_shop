@@ -11,7 +11,12 @@ interface InventoryForOrders
     public function deductForOrder(PDO $transaction, int $productId, int $quantity, int $orderId): array;
 }
 
-final class PostgresInventory implements InventoryForOrders
+interface InventoryForCancellations
+{
+    public function restoreForCancellation(PDO $transaction, int $productId, int $quantity, int $orderId, int $staffId): void;
+}
+
+final class PostgresInventory implements InventoryForOrders, InventoryForCancellations
 {
     public function deductForOrder(PDO $transaction, int $productId, int $quantity, int $orderId): array
     {
@@ -70,6 +75,21 @@ final class PostgresInventory implements InventoryForOrders
             }
             throw $error;
         }
+    }
+
+    public function restoreForCancellation(PDO $transaction, int $productId, int $quantity, int $orderId, int $staffId): void
+    {
+        if (!$transaction->inTransaction() || $quantity < 1) {
+            throw new LogicException('Stock restoration requires an active transaction and a positive quantity.');
+        }
+        $restore = $transaction->prepare('UPDATE products SET stock = stock + :quantity
+            WHERE id = :id AND stock <= :ceiling RETURNING stock');
+        $restore->execute(['quantity' => $quantity, 'id' => $productId, 'ceiling' => 2147483647 - $quantity]);
+        $after = $restore->fetchColumn();
+        if ($after === false) {
+            throw new StockRejected('Die Menge kann nicht zurück ins Lager gebucht werden.');
+        }
+        $this->record($transaction, $productId, 'cancellation', $quantity, (int) $after, $orderId, $staffId);
     }
 
     public function products(PDO $db): array

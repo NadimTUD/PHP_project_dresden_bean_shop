@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS inventory_movements (
     order_id integer REFERENCES orders(id),
     staff_account_id integer REFERENCES accounts(id),
     created_at timestamptz NOT NULL DEFAULT now(),
-    CHECK (
+    CONSTRAINT inventory_movements_check CHECK (
         (kind = 'sale' AND quantity_change < 0 AND order_id IS NOT NULL AND staff_account_id IS NULL)
         OR
         (kind = 'restock' AND quantity_change > 0 AND order_id IS NULL AND staff_account_id IS NOT NULL)

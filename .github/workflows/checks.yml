@@ -7,6 +7,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Start PostgreSQL and PHP
+        env:
+          STAFF_SETUP_TOKEN: ci-only-shop-setup-token-1234567890
         run: docker compose up -d --build --wait
       - name: PHP syntax check
         run: docker compose exec -T web sh -c 'find public src bin tests -name "*.php" -print0 | xargs -0 -n 1 php -l'

@@ -1,7 +1,6 @@
 """Browser-facing integration checks against a fresh CI database."""
 import http.cookiejar
 import re
-import subprocess
 import urllib.parse
 import urllib.request
 from urllib.error import HTTPError
@@ -62,7 +61,15 @@ assert 'value="updated@example.test"' in edited
 assert 'href="/account.php#profile" aria-current="page"' in edited
 assert "Archive Test Alice" in alice.request(path)[1]
 
-subprocess.run(["docker", "compose", "exec", "-T", "web", "php", "bin/grant-staff.php", "bob@example.test"], check=True)
+assert "Mitarbeiterzugang einrichten" in bob.request("/account.php")[1]
+assert "Der Einrichtungscode stimmt nicht." in bob.post("/team.php", setup_token="wrong-secret")
+assert "Mitarbeiterzugang aktiviert." in bob.post("/team.php", setup_token="ci-only-shop-setup-token-1234567890")
+assert "Mitarbeiterzugang einrichten" not in alice.request("/account.php")[1]
+try:
+    alice.request("/team.php", {"setup_token": "ci-only-shop-setup-token-1234567890"})
+    raise AssertionError("A second account reused the first-staff setup")
+except HTTPError as error:
+    assert error.code == 403
 _, staff = bob.request(path)
 assert "Alle Bestellungen" in staff and "Archive Test Alice" in staff
 assert 'href="/archive.php" aria-current="page">Bestellarchiv · Alle Bestellungen' in staff
@@ -84,6 +91,22 @@ assert "15 auf Lager" in retail and "11 auf Lager" in retail and "Nachfüllung +
 assert "15 verfügbar" in alice.request("/")[1]
 invalid_restock = bob.post("/inventory.php", **{"quantities[1]": "-1"})
 assert "eine ganze Zahl" in invalid_restock and "15 auf Lager" in invalid_restock
+try:
+    alice.post(path, id=order_id, expected="placed", status="processing")
+    raise AssertionError("Customer changed order status")
+except HTTPError as error:
+    assert error.code == 403
+# Staff can change the workflow using the archive controls.
+assert "Bestellstatus gespeichert." in bob.post(path, id=order_id, expected="placed", status="processing")
+assert "In Bearbeitung" in alice.request(path)[1]
+assert "Bestellung storniert und Bestand zurückgebucht." in bob.post(
+    path, id=order_id, expected="processing", status="cancelled")
+assert "Storniert" in alice.request(path)[1]
+_, after = bob.request("/inventory.php")
+assert "16 auf Lager" in after and "Storno +1" in after
+assert "Der Status kann nicht geändert werden." in bob.post(
+    path, id=order_id, expected="processing", status="cancelled")
+assert "16 auf Lager" in bob.request("/inventory.php")[1]
 _, directory = bob.request("/customers.php")
 customer_path = re.search(r'href="(/customers.php\?id=\d+)"\s*>Alice Updated</a>', directory)[1]
 customer_id = customer_path.rsplit("=", 1)[1]
@@ -112,4 +135,6 @@ assert "E-Mail oder Passwort stimmt nicht." in alice.post(
     "/account.php", action="login", email="alice-edited@example.test", password="test-only-password-2026")
 assert "Mein Profil" in alice.post(
     "/account.php", action="login", email="alice-edited@example.test", password="changed-test-password-2026")
-print("PASS: customer and staff edits, password change, login and private order history")
+assert "Mitarbeiterrolle vergeben." in bob.post("/team.php", email="alice-edited@example.test")
+assert 'href="/inventory.php">Lager' in alice.request("/account.php")[1]
+print("PASS: role setup, order lifecycle, exactly-once stock return and customer account workflows")

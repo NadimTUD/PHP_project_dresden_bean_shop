@@ -102,7 +102,9 @@ try {
             <?php foreach ($history as $move): ?>
                 <li>
                     <strong><?= h($move['product_name']) ?></strong>
-                    <span><?= $move['kind'] === 'restock' ? 'Nachfüllung +' : 'Bestellung ' ?><?= (int) $move['quantity_change'] ?></span>
+                    <span><?= match ($move['kind']) {
+                        'restock' => 'Nachfüllung +', 'cancellation' => 'Storno +', default => 'Bestellung ',
+                    } ?><?= (int) $move['quantity_change'] ?></span>
                     <span><?= (int) $move['stock_after'] ?> danach auf Lager</span>
                     <span><?= (new DateTimeImmutable($move['created_at']))->setTimezone(new DateTimeZone('Europe/Berlin'))->format('d.m.Y, H:i:s') ?></span>
                     <?php if ($move['order_id'] !== null): ?>

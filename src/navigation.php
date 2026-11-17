@@ -20,6 +20,7 @@ function shopNavigation(string $page, ?array $account, int $cartCount): void
     if ($staff) {
         $links[] = ['customers', '/customers.php', 'Kundenverwaltung'];
         $links[] = ['inventory', '/inventory.php', 'Lager'];
+        $links[] = ['team', '/team.php', 'Team'];
     }
     ?>
     <nav class="shop-nav" aria-label="Hauptnavigation">

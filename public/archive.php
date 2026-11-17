@@ -7,6 +7,7 @@ require __DIR__ . '/../src/customers.php';
 require __DIR__ . '/../src/accounts.php';
 require __DIR__ . '/../src/html.php';
 require __DIR__ . '/../src/navigation.php';
+require __DIR__ . '/../src/order-workflow.php';
 
 startShopSession();
 
@@ -18,20 +19,57 @@ function positiveQuery(string $name): ?int
 
 $orderId = positiveQuery('order');
 $page = min(100000, positiveQuery('page') ?? 1);
+$notice = $_SESSION['order_notice'] ?? null;
+$statusError = $_SESSION['order_error'] ?? null;
+unset($_SESSION['order_notice'], $_SESSION['order_error']);
 
 try {
     $db = connect();
     $account = signedInAccount($db);
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($account === null || (int) $account['staff'] !== 1)) {
+        http_response_code(403);
+        exit('Nur Mitarbeitende können Bestellungen bearbeiten.');
+    }
     if ($account === null) {
         header('Location: /account.php', true, 303);
         exit;
     }
     $staff = (int) $account['staff'] === 1;
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        verifyPostToken();
+        $targetId = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 2147483647],
+        ]);
+        $rawStatus = $_POST['status'] ?? null;
+        $rawExpected = $_POST['expected'] ?? null;
+        $next = is_string($rawStatus) ? OrderStatus::tryFrom($rawStatus) : null;
+        $expected = is_string($rawExpected) ? OrderStatus::tryFrom($rawExpected) : null;
+        try {
+            if (!$targetId || $next === null || $expected === null) {
+                throw new OrderStatusRejected('Ungültiger Bestellstatus.');
+            }
+            moveOrder($db, $targetId, $expected, $next, (int) $account['id'], new PostgresInventory());
+            $_SESSION['order_notice'] = $next === OrderStatus::Cancelled
+                ? 'Bestellung storniert und Bestand zurückgebucht.' : 'Bestellstatus gespeichert.';
+        } catch (OrderStatusRejected | StockRejected $rejection) {
+            $_SESSION['order_error'] = $rejection->getMessage();
+        }
+        header('Location: /archive.php' . ($targetId ? '?order=' . $targetId : ''), true, 303);
+        exit;
+    }
     $legacy = $staff && ($_GET['customer'] ?? null) === 'legacy';
     $customerId = $staff ? positiveQuery('customer') : (int) $account['id'];
     $customers = $staff ? $db->query('SELECT id, display_name, email FROM accounts ORDER BY display_name, id')
         ->fetchAll(PDO::FETCH_ASSOC) : [];
     $orders = orderHistory($db, $customerId, $orderId, ($page - 1) * 20, $legacy);
+    $events = [];
+    if ($orderId !== null && $orders !== []) {
+        // Only load events after the order passed the account/role filter.
+        $log = $db->prepare('SELECT previous_status, next_status, created_at FROM order_status_events
+            WHERE order_id = :id ORDER BY id');
+        $log->execute(['id' => $orderId]);
+        $events = $log->fetchAll(PDO::FETCH_ASSOC);
+    }
 } catch (PDOException $error) {
     error_log($error->getMessage());
     http_response_code(500);
@@ -61,6 +99,8 @@ $pageUrl = static fn(int $number): string => '/archive.php?' . http_build_query(
     </div>
 </header>
 <main class="wrap">
+    <?php if ($notice !== null): ?><p class="notice" role="status"><?= h($notice) ?></p><?php endif; ?>
+    <?php if ($statusError !== null): ?><p class="warning" role="alert"><?= h($statusError) ?></p><?php endif; ?>
     <form class="card filters" method="get">
         <?php if ($staff): ?>
         <label for="customer">Kundenprofil</label>
@@ -82,7 +122,7 @@ $pageUrl = static fn(int $number): string => '/archive.php?' . http_build_query(
     <?php if ($orders === []): ?>
         <p>Keine passenden Bestellungen.</p>
     <?php endif; ?>
-    <?php foreach ($orders as $order): ?>
+    <?php foreach ($orders as $order): $status = OrderStatus::from($order['status']); ?>
         <details class="card archive-order" <?= $orderId !== null ? 'open' : '' ?>>
             <summary>
                 <span class="order-line">
@@ -90,6 +130,7 @@ $pageUrl = static fn(int $number): string => '/archive.php?' . http_build_query(
                     <span><?= h($order['customer_name'] ?? 'Ohne Kundenprofil') ?></span>
                     <span><?= (new DateTimeImmutable($order['created_at']))->setTimezone(new DateTimeZone('Europe/Berlin'))->format('d.m.Y, H:i:s') ?></span>
                     <strong><?= euro($order['total']) ?></strong>
+                    <span class="order-status"><?= h($status->label()) ?></span>
                 </span>
             </summary>
             <ul>
@@ -98,6 +139,34 @@ $pageUrl = static fn(int $number): string => '/archive.php?' . http_build_query(
                         <?= euro((int) $item['unit_price_cents']) ?> pro Packung</li>
                 <?php endforeach; ?>
             </ul>
+            <?php if ($staff && $status->allowedNext() !== []): ?>
+                <form method="post" class="filters order-actions">
+                    <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
+                    <input type="hidden" name="id" value="<?= (int) $order['id'] ?>">
+                    <input type="hidden" name="expected" value="<?= h($status->value) ?>">
+                    <?php foreach ($status->allowedNext() as $next): ?>
+                        <button type="submit" name="status" value="<?= h($next->value) ?>"
+                                <?= $next === OrderStatus::Cancelled ? 'class="secondary"' : '' ?>>
+                            <?= match ($next) {
+                                OrderStatus::Processing => 'Bearbeitung starten', OrderStatus::Completed => 'Abschließen',
+                                OrderStatus::Cancelled => 'Stornieren und Bestand zurückbuchen',
+                                default => h($next->label()),
+                            } ?>
+                        </button>
+                    <?php endforeach; ?>
+                </form>
+            <?php endif; ?>
+            <?php if ($orderId === null && $status !== OrderStatus::Legacy): ?>
+                <p><a href="/archive.php?order=<?= (int) $order['id'] ?>">Bestellverlauf ansehen</a></p>
+            <?php elseif ($events !== []): ?>
+                <h3>Bestellverlauf</h3>
+                <ul>
+                    <?php foreach ($events as $event): ?>
+                        <li><?= h(OrderStatus::from($event['next_status'])->label()) ?>,
+                            <?= (new DateTimeImmutable($event['created_at']))->setTimezone(new DateTimeZone('Europe/Berlin'))->format('d.m.Y, H:i:s') ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
         </details>
     <?php endforeach; ?>
     <?php if ($page > 1 || $hasNext): ?>

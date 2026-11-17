@@ -5,6 +5,7 @@ require __DIR__ . '/../src/database.php';
 require __DIR__ . '/../src/shop.php';
 require __DIR__ . '/../src/customers.php';
 require __DIR__ . '/../src/accounts.php';
+require __DIR__ . '/../src/order-workflow.php';
 
 function expect(mixed $actual, mixed $expected, string $label): void
 {
@@ -34,6 +35,10 @@ $inventoryMigration = str_replace('CREATE TABLE IF NOT EXISTS inventory_movement
     'CREATE TEMP TABLE IF NOT EXISTS inventory_movements', file_get_contents(__DIR__ . '/../database/05-inventory.sql'));
 $db->exec($inventoryMigration);
 $db->exec($inventoryMigration);
+$workflowMigration = str_replace('CREATE TABLE IF NOT EXISTS order_status_events',
+    'CREATE TEMP TABLE IF NOT EXISTS order_status_events', file_get_contents(__DIR__ . '/../database/06-order-workflow.sql'));
+$db->exec($workflowMigration);
+$db->exec($workflowMigration);
 $inventory = new PostgresInventory();
 
 $stock = static fn(int $id): int => (int) $db->query("SELECT stock FROM products WHERE id = {$id}")->fetchColumn();
@@ -41,6 +46,7 @@ $count = static fn(): int => (int) $db->query('SELECT count(*) FROM orders')->fe
 
 expect(euro(1290), '12,90 €', 'Euro formatting');
 $legacy = orderHistory($db, null, 1)[0];
+expect($legacy['status'], 'legacy', 'Migration does not invent a workflow status for old orders');
 expect($legacy['customer_name'], null, 'Migration preserves old orders without assigning a customer');
 expect($legacy['items'][0]['product_name'], 'Plauen Blend', 'Migration backfills old item labels');
 expect((int) $db->query('SELECT count(*) FROM customers')->fetchColumn(), 2, 'Migration retains legacy profiles');
@@ -133,3 +139,25 @@ expect($history[0]['total'], 4070, 'Archive calculates the historical order tota
 expect(orderHistory($db, $customerId, 1), [], 'Combined filters exclude the older guest order');
 expect(orderHistory($db, $otherId, $order['id']), [], 'Another account cannot select the order');
 expect(count(orderHistory($db, null, null, 0, true)), 1, 'Staff legacy filter finds orders without an account');
+
+try {
+    moveOrder($db, $order['id'], OrderStatus::Placed, OrderStatus::Processing, $customerId, $inventory);
+    throw new LogicException('A customer must not change order status.');
+} catch (OrderStatusRejected) {
+    expect(orderHistory($db, $customerId, $order['id'])[0]['status'], 'placed', 'Non-staff status change rejected');
+}
+moveOrder($db, $order['id'], OrderStatus::Placed, OrderStatus::Processing, $otherId, $inventory);
+moveOrder($db, $order['id'], OrderStatus::Processing, OrderStatus::Cancelled, $otherId, $inventory);
+expect($stock(1), 17, 'Cancellation restores both units of the first product');
+expect($stock(2), 10, 'Cancellation restores the second product');
+expect(orderHistory($db, $customerId, $order['id'])[0]['status'], 'cancelled', 'Customer sees the cancelled status');
+try {
+    moveOrder($db, $order['id'], OrderStatus::Processing, OrderStatus::Cancelled, $otherId, $inventory);
+    throw new LogicException('Repeated cancellation must not restore stock twice.');
+} catch (OrderStatusRejected) {
+    expect($stock(1), 17, 'Repeated cancellation leaves stock unchanged');
+    expect(count($inventory->history($db)), 6, 'Repeated cancellation adds no inventory movements');
+}
+expect((int) $db->query('SELECT count(*) FROM order_status_events')->fetchColumn(), 2, 'Both valid changes are audited');
+$remainingSales = $db->query(file_get_contents(__DIR__ . '/../database/sales.sql'))->fetchAll(PDO::FETCH_ASSOC);
+expect(count($remainingSales), 1, 'Cancelled sales are omitted from reporting');

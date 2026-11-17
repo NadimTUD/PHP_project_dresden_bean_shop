@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../src/database.php';
 require __DIR__ . '/../src/accounts.php';
+require __DIR__ . '/../src/staff.php';
 require __DIR__ . '/../src/google.php';
 require __DIR__ . '/../src/html.php';
 require __DIR__ . '/../src/navigation.php';
@@ -11,6 +12,8 @@ startShopSession();
 try {
     $db = connect();
     $account = signedInAccount($db);
+    $showStaffSetup = $account !== null && !(int) $account['staff']
+        && staffSetupToken() !== null && !shopHasStaff($db);
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         verifyPostToken();
         try {
@@ -114,6 +117,7 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
     <section class="card" id="profile">
         <h2>Mein Profil<?= (int) $account['staff'] === 1 ? ' · Mitarbeitende' : '' ?></h2>
         <p>Hier kannst du deinen Namen und deine E-Mail-Adresse ändern.</p>
+        <?php if ($showStaffSetup): ?><p><a href="/team.php">Mitarbeiterzugang einrichten</a></p><?php endif; ?>
         <form class="account-form" method="post">
             <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
             <input type="hidden" name="action" value="profile">
