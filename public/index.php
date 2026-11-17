@@ -85,11 +85,11 @@ $total = 0;
 </head>
 <body>
 <?php shopNavigation('shop', $account, array_sum($cart)); ?>
-<header class="hero">
+<header class="hero shop-hero">
     <div class="wrap">
-        <p class="eyebrow">DRESDEN / E-COMMERCE-DEMO</p>
         <h1>Dresden Bean Shop</h1>
         <p>Drei Röstungen, ein Warenkorb. Ein Demo-Shop mit PHP und PostgreSQL.</p>
+        <a class="primary" href="#roasts">Röstungen entdecken</a>
     </div>
 </header>
 <main class="wrap">
@@ -98,17 +98,21 @@ $total = 0;
     <?php if ($lastOrder !== null): ?>
         <p><a href="/archive.php?order=<?= (int) $lastOrder ?>">Bestellung im Archiv ansehen</a></p>
     <?php endif; ?>
-    <h2>Unsere Röstungen</h2>
+    <h2 id="roasts">Unsere Röstungen</h2>
     <div class="catalog">
         <?php foreach ($products as $product):
             $id = (int) $product['id'];
             $stock = (int) $product['stock'];
         ?>
-        <article class="card">
-            <h3><?= h($product['name']) ?></h3>
-            <p><?= h($product['notes']) ?></p>
-            <p><strong><?= euro((int) $product['price_cents']) ?></strong> / 250 g</p>
-            <p><?= $stock > 0 ? "{$stock} verfügbar" : 'Ausverkauft' ?></p>
+        <article class="roast">
+            <div>
+                <h3><?= h($product['name']) ?></h3>
+                <p class="muted"><?= h(str_replace(' · ', ' / ', $product['notes'])) ?></p>
+            </div>
+            <div>
+                <p class="roast-price"><strong><?= euro((int) $product['price_cents']) ?></strong> / 250 g</p>
+                <p class="muted"><?= $stock > 0 ? "{$stock} verfügbar" : 'Ausverkauft' ?></p>
+            </div>
             <?php if ($stock > 0): ?>
             <form method="post">
                 <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
@@ -121,11 +125,11 @@ $total = 0;
                     <button type="submit">Menge speichern</button>
                 </div>
             </form>
-            <?php endif; ?>
+            <?php else: ?><span></span><?php endif; ?>
         </article>
         <?php endforeach; ?>
     </div>
-    <section class="card cart" id="cart">
+    <section class="cart" id="cart">
         <h2>Warenkorb</h2>
         <?php if ($cart === []): ?>
             <p>Dein Warenkorb ist leer.</p>
@@ -138,7 +142,7 @@ $total = 0;
                     $total += $subtotal;
                 ?>
                 <li>
-                    <span><?= $cart[$id] ?> × <?= h($product['name']) ?> · <?= euro($subtotal) ?></span>
+                    <span><?= $cart[$id] ?> × <?= h($product['name']) ?> <strong><?= euro($subtotal) ?></strong></span>
                     <form method="post">
                         <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
                         <input type="hidden" name="action" value="quantity">

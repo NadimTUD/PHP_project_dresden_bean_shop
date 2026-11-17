@@ -30,7 +30,7 @@ try {
         } catch (AccountRejected $error) {
             $_SESSION['account_error'] = $error->getMessage();
         }
-        header('Location: /account.php', true, 303);
+        header('Location: /account.php' . (($action ?? '') === 'profile' ? '#profile' : ''), true, 303);
         exit;
     }
 } catch (PDOException $error) {
@@ -53,7 +53,6 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
 <?php shopNavigation($account === null ? '' : 'profile', $account, array_sum($_SESSION['cart'] ?? [])); ?>
 <header class="hero">
     <div class="wrap">
-        <p class="eyebrow">DRESDEN BEAN SHOP</p>
         <h1>Kundenkonto</h1>
     </div>
 </header>
@@ -62,7 +61,7 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
     <?php if ($error !== null): ?><p class="warning" role="alert"><?= h($error) ?></p><?php endif; ?>
     <p class="muted">Lokales Demo-Projekt. Verwende für Passwortkonten Testdaten und kein bereits genutztes Passwort.</p>
     <?php if ($account === null): ?>
-    <div class="catalog">
+    <div class="account-grid">
         <section class="card" id="login">
             <h2>Anmelden</h2>
             <form class="account-form" method="post">
@@ -99,6 +98,7 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
     <?php else: ?>
     <section class="card" id="profile">
         <h2>Mein Profil<?= (int) $account['staff'] === 1 ? ' · Mitarbeitende' : '' ?></h2>
+        <p>Hier kannst du deinen Namen und deine E-Mail-Adresse ändern.</p>
         <form class="account-form" method="post">
             <input type="hidden" name="csrf" value="<?= h($_SESSION['csrf']) ?>">
             <input type="hidden" name="action" value="profile">
@@ -106,7 +106,7 @@ unset($_SESSION['account_notice'], $_SESSION['account_error']);
             <input id="profile-name" name="name" autocomplete="name" minlength="2" maxlength="60" value="<?= h($account['display_name']) ?>" required>
             <label for="profile-email">E-Mail im Shop</label>
             <input type="email" id="profile-email" name="email" autocomplete="email" maxlength="254" value="<?= h($account['email']) ?>" required>
-            <button>Profil speichern</button>
+            <button>Kundendaten speichern</button>
         </form>
     </section>
     <?php endif; ?>

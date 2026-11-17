@@ -50,6 +50,10 @@ docker compose exec web php bin/grant-staff.php team@example.test
 ```
 
 Mit diesem Konto zeigt **Bestellarchiv** alle Bestellungen und einen Kundenfilter.
+Über **Kundenverwaltung** können Mitarbeitende Name und Shop-E-Mail von
+Kundenkonten bearbeiten und deren Bestellungen öffnen. Kunden bearbeiten ihre
+eigenen Daten über **Meine Kundendaten**. Bereits gespeicherte Bestellungen
+behalten die Daten vom Bestellzeitpunkt.
 Die Registrierung im Browser kann keine Mitarbeiterrechte vergeben.
 
 ### Optional: Google-Anmeldung
@@ -74,6 +78,7 @@ nicht automatisch mit Passwortkonten gleicher E-Mail verknüpft.
 | `public/index.php` | HTML-Ansicht, Formularverarbeitung, Session-Warenkorb und Aufruf des Checkouts |
 | `public/archive.php` | Archivansicht, Filter nach Kundenprofil und Bestellnummer |
 | `public/account.php` | Anmeldung, Registrierung und Profilverwaltung |
+| `public/customers.php` | Mitarbeiteransicht zur Bearbeitung von Kundenkonten |
 | `src/navigation.php` | Gemeinsame Navigation für Gäste, Kunden und Mitarbeiter |
 | `src/shop.php` | Bestelltransaktion, Bestandsprüfung und Preisformatierung |
 | `src/customers.php` | SQL-Abfrage für das Bestellarchiv |

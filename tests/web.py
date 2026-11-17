@@ -4,6 +4,7 @@ import re
 import subprocess
 import urllib.parse
 import urllib.request
+from urllib.error import HTTPError
 
 
 BASE = "http://127.0.0.1:8080"
@@ -65,6 +66,21 @@ _, staff = bob.request(path)
 assert "Alle Bestellungen" in staff and "Archive Test Alice" in staff
 assert 'href="/archive.php" aria-current="page">Bestellarchiv · Alle Bestellungen' in staff
 assert "Bestellarchiv · Alle Bestellungen" not in own
+assert 'href="/customers.php">Kundenverwaltung' in staff
+assert 'href="/customers.php"' not in own
+_, directory = bob.request("/customers.php")
+customer_path = re.search(r'href="(/customers.php\?id=\d+)"\s*>Alice Updated</a>', directory)[1]
+customer_id = customer_path.rsplit("=", 1)[1]
+try:
+    alice.request(customer_path)
+    raise AssertionError("Customer accessed staff directory")
+except HTTPError as error:
+    assert error.code == 403
+edited_by_staff = bob.post(customer_path, id=customer_id, name="Alice Staff Edit", email="alice-edited@example.test")
+assert "Kundendaten gespeichert." in edited_by_staff
+assert 'value="alice-edited@example.test"' in edited_by_staff
+assert 'value="alice-edited@example.test"' in alice.request("/account.php")[1]
+assert "Archive Test Alice" in alice.request(path)[1]  # Historical order snapshot.
 assert "Konto erstellen" in alice.post("/account.php", action="logout")
 assert alice.request("/archive.php")[0].endswith("/account.php")
 print("PASS: navigation, registration, checkout, profile, private history, staff access and logout")

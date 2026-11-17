@@ -17,6 +17,9 @@ function shopNavigation(string $page, ?array $account, int $cartCount): void
     } else {
         $links[] = ['profile', '/account.php#profile', 'Meine Kundendaten'];
     }
+    if ($staff) {
+        $links[] = ['customers', '/customers.php', 'Kundenverwaltung'];
+    }
     ?>
     <nav class="shop-nav" aria-label="Hauptnavigation">
         <div class="wrap nav-links">

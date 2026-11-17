@@ -48,9 +48,10 @@ function passwordAccount(PDO $db, mixed $email, mixed $password): int
     return (int) $account['id'];
 }
 
-function updateAccount(PDO $db, int $id, mixed $name, mixed $email): void
+function updateAccount(PDO $db, int $id, mixed $name, mixed $email, bool $customerOnly = false): void
 {
-    $stmt = $db->prepare('UPDATE accounts SET display_name = :name, email = :email WHERE id = :id');
+    $sql = 'UPDATE accounts SET display_name = :name, email = :email WHERE id = :id';
+    $stmt = $db->prepare($sql . ($customerOnly ? ' AND NOT is_staff' : '') . ' RETURNING id');
     try {
         $stmt->execute(['id' => $id, 'name' => accountName($name), 'email' => accountEmail($email)]);
     } catch (PDOException $error) {
@@ -58,6 +59,9 @@ function updateAccount(PDO $db, int $id, mixed $name, mixed $email): void
             throw new AccountRejected('Diese E-Mail-Adresse wird bereits verwendet.');
         }
         throw $error;
+    }
+    if ($stmt->fetchColumn() === false) {
+        throw new AccountRejected('Konto nicht gefunden oder nicht bearbeitbar.');
     }
 }
 

@@ -56,7 +56,6 @@ $pageUrl = static fn(int $number): string => '/archive.php?' . http_build_query(
 <?php shopNavigation('archive', $account, array_sum($_SESSION['cart'] ?? [])); ?>
 <header class="hero">
     <div class="wrap">
-        <p class="eyebrow">DRESDEN BEAN SHOP</p>
         <h1>Bestellarchiv</h1>
         <p><?= $staff ? 'Mitarbeiteransicht · Alle Bestellungen' : 'Deine Bestellungen mit Datum, Uhrzeit und Artikeln' ?></p>
     </div>
@@ -86,10 +85,12 @@ $pageUrl = static fn(int $number): string => '/archive.php?' . http_build_query(
     <?php foreach ($orders as $order): ?>
         <details class="card archive-order" <?= $orderId !== null ? 'open' : '' ?>>
             <summary>
-                <strong>Bestellung #<?= $order['id'] ?></strong> ·
-                <?= h($order['customer_name'] ?? 'Ohne Kundenprofil') ?> ·
-                <?= (new DateTimeImmutable($order['created_at']))->setTimezone(new DateTimeZone('Europe/Berlin'))->format('d.m.Y, H:i:s') ?> ·
-                <strong><?= euro($order['total']) ?></strong>
+                <span class="order-line">
+                    <strong>Bestellung #<?= $order['id'] ?></strong>
+                    <span><?= h($order['customer_name'] ?? 'Ohne Kundenprofil') ?></span>
+                    <span><?= (new DateTimeImmutable($order['created_at']))->setTimezone(new DateTimeZone('Europe/Berlin'))->format('d.m.Y, H:i:s') ?></span>
+                    <strong><?= euro($order['total']) ?></strong>
+                </span>
             </summary>
             <ul>
                 <?php foreach ($order['items'] as $item): ?>
