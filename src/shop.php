@@ -10,7 +10,7 @@ function euro(int $cents): string
     return intdiv($cents, 100) . ',' . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT) . ' €';
 }
 
-function checkout(PDO $db, array $cart, int $customerId): array
+function checkout(PDO $db, array $cart, int $accountId): array
 {
     if ($cart === []) {
         throw new CheckoutRejected('Dein Warenkorb ist leer.');
@@ -21,13 +21,13 @@ function checkout(PDO $db, array $cart, int $customerId): array
     $db->beginTransaction();
     try {
         $createOrder = $db->prepare(
-            'INSERT INTO orders (customer_id, customer_name)
-             SELECT id, display_name FROM customers WHERE id = :id RETURNING id'
+            'INSERT INTO orders (account_id, customer_name)
+             SELECT id, display_name FROM accounts WHERE id = :id RETURNING id'
         );
-        $createOrder->execute(['id' => $customerId]);
+        $createOrder->execute(['id' => $accountId]);
         $orderId = $createOrder->fetchColumn();
         if ($orderId === false) {
-            throw new CheckoutRejected('Bitte wähle ein gültiges Demo-Kundenprofil.');
+            throw new CheckoutRejected('Bitte melde dich erneut an.');
         }
         $orderId = (int) $orderId;
         $reserve = $db->prepare(

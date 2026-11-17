@@ -1,32 +1,17 @@
 <?php
 declare(strict_types=1);
 
-function customerProfiles(PDO $db): array
-{
-    return $db->query('SELECT id, display_name FROM customers ORDER BY display_name')->fetchAll(PDO::FETCH_ASSOC);
-}
-
-function createCustomer(PDO $db, mixed $name): bool
-{
-    // Aliases only: no email, password, address, or payment details.
-    if (!is_string($name) || !preg_match('/\A[\p{L}\p{N}][\p{L}\p{N} .\-]{1,59}\z/u', trim($name))) {
-        throw new CheckoutRejected('Bitte gib einen Demo-Namen mit 2 bis 60 Zeichen ein.');
-    }
-    $stmt = $db->prepare(
-        'INSERT INTO customers (display_name) VALUES (:name) ON CONFLICT (display_name) DO NOTHING RETURNING id'
-    );
-    $stmt->execute(['name' => trim($name)]);
-    return $stmt->fetchColumn() !== false;
-}
-
-function orderHistory(PDO $db, ?int $customerId, ?int $orderId, int $offset = 0): array
+function orderHistory(PDO $db, ?int $accountId, ?int $orderId, int $offset = 0, bool $legacyOnly = false): array
 {
     // Limit orders before joining their items so an order is never split between pages.
     $filters = [];
     $params = [];
-    if ($customerId !== null) {
-        $filters[] = 'customer_id = :customer';
-        $params['customer'] = $customerId;
+    if ($accountId !== null) {
+        $filters[] = 'account_id = :account';
+        $params['account'] = $accountId;
+    }
+    if ($legacyOnly) {
+        $filters[] = 'account_id IS NULL';
     }
     if ($orderId !== null) {
         $filters[] = 'id = :order_id';

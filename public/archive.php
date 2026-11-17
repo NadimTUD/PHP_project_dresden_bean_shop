@@ -4,7 +4,10 @@ declare(strict_types=1);
 require __DIR__ . '/../src/database.php';
 require __DIR__ . '/../src/shop.php';
 require __DIR__ . '/../src/customers.php';
+require __DIR__ . '/../src/accounts.php';
 require __DIR__ . '/../src/html.php';
+
+startShopSession();
 
 function positiveQuery(string $name): ?int
 {
@@ -12,14 +15,22 @@ function positiveQuery(string $name): ?int
     return is_int($value) ? $value : null;
 }
 
-$customerId = positiveQuery('customer');
 $orderId = positiveQuery('order');
 $page = min(100000, positiveQuery('page') ?? 1);
 
 try {
     $db = connect();
-    $customers = customerProfiles($db);
-    $orders = orderHistory($db, $customerId, $orderId, ($page - 1) * 20);
+    $account = signedInAccount($db);
+    if ($account === null) {
+        header('Location: /account.php', true, 303);
+        exit;
+    }
+    $staff = (int) $account['staff'] === 1;
+    $legacy = $staff && ($_GET['customer'] ?? null) === 'legacy';
+    $customerId = $staff ? positiveQuery('customer') : (int) $account['id'];
+    $customers = $staff ? $db->query('SELECT id, display_name, email FROM accounts ORDER BY display_name, id')
+        ->fetchAll(PDO::FETCH_ASSOC) : [];
+    $orders = orderHistory($db, $customerId, $orderId, ($page - 1) * 20, $legacy);
 } catch (PDOException $error) {
     error_log($error->getMessage());
     http_response_code(500);
@@ -29,7 +40,7 @@ try {
 $hasNext = count($orders) > 20;
 $orders = array_slice($orders, 0, 20);
 $pageUrl = static fn(int $number): string => '/archive.php?' . http_build_query([
-    'customer' => $customerId, 'order' => $orderId, 'page' => $number,
+    'customer' => $staff ? ($legacy ? 'legacy' : $customerId) : null, 'order' => $orderId, 'page' => $number,
 ]);
 ?>
 <!doctype html>
@@ -45,22 +56,27 @@ $pageUrl = static fn(int $number): string => '/archive.php?' . http_build_query(
     <div class="wrap">
         <p class="eyebrow">DRESDEN BEAN SHOP</p>
         <h1>Bestellarchiv</h1>
-        <p>Nach Demo-Kundenprofil oder Bestellnummer filtern.</p>
-        <a href="/">Zurück zum Shop</a>
+        <p><?= $staff ? 'Mitarbeiteransicht · Alle Bestellungen' : 'Deine Bestellungen mit Datum, Uhrzeit und Artikeln' ?></p>
+        <nav class="shop-nav" aria-label="Hauptnavigation">
+            <a class="nav-button" href="/">Shop</a>
+            <a class="nav-button" href="/account.php">Mein Konto</a>
+        </nav>
     </div>
 </header>
 <main class="wrap">
-    <p class="muted">Lokale Demo: Das Archiv ist ohne Anmeldung sichtbar. Keine echten Kundendaten eingeben.</p>
     <form class="card filters" method="get">
+        <?php if ($staff): ?>
         <label for="customer">Kundenprofil</label>
         <select id="customer" name="customer">
             <option value="">Alle</option>
+            <option value="legacy" <?= $legacy ? 'selected' : '' ?>>Bestellungen ohne Konto</option>
             <?php foreach ($customers as $customer): ?>
                 <option value="<?= (int) $customer['id'] ?>" <?= $customerId === (int) $customer['id'] ? 'selected' : '' ?>>
-                    <?= h($customer['display_name']) ?>
+                    <?= h($customer['display_name']) ?> (<?= h($customer['email']) ?>)
                 </option>
             <?php endforeach; ?>
         </select>
+        <?php endif; ?>
         <label for="order">Bestellnummer</label>
         <input class="wide" id="order" name="order" type="number" min="1" max="2147483647" value="<?= $orderId ?? '' ?>">
         <button>Filtern</button>
@@ -74,7 +90,7 @@ $pageUrl = static fn(int $number): string => '/archive.php?' . http_build_query(
             <summary>
                 <strong>Bestellung #<?= $order['id'] ?></strong> ·
                 <?= h($order['customer_name'] ?? 'Ohne Kundenprofil') ?> ·
-                <?= (new DateTimeImmutable($order['created_at']))->setTimezone(new DateTimeZone('Europe/Berlin'))->format('d.m.Y, H:i') ?> ·
+                <?= (new DateTimeImmutable($order['created_at']))->setTimezone(new DateTimeZone('Europe/Berlin'))->format('d.m.Y, H:i:s') ?> ·
                 <strong><?= euro($order['total']) ?></strong>
             </summary>
             <ul>

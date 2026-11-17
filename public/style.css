@@ -23,7 +23,12 @@ input { width: 4.1rem; border: 1px solid #747b70; }
 .notice, .warning { padding: .75rem 1rem; border-radius: .4rem; }
 .notice { background: #e4f0e2; }
 .warning { background: #ffe2d6; }
-.archive-link { margin-inline-start: 1rem; }
+.shop-nav { display: flex; gap: .65rem; flex-wrap: wrap; }
+.hero .nav-button { border: 1px solid #ffdbad; border-radius: .45rem; padding: .45rem .7rem; text-decoration: none; }
+.hero .nav-button:hover { background: #ffdbad; color: #21382c; }
+.account-form { display: grid; gap: .55rem; max-width: 28rem; margin-bottom: 1rem; }
+.account-form input { width: 100%; }
+.account-form button { justify-self: start; }
 .filters { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
 .wide { width: min(12rem, 100%); }
 .archive-order { margin-block: .85rem; }

@@ -15,4 +15,4 @@ jobs:
       - name: Catalog smoke test
         run: curl --retry 6 --retry-connrefused --fail --silent --show-error http://127.0.0.1:8080/ | grep -F 'Elbe Espresso'
       - name: Archive smoke test
-        run: curl --fail --silent --show-error http://127.0.0.1:8080/archive.php | grep -F 'Bestellarchiv'
+        run: python3 tests/web.py
